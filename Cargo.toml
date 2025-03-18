@@ -1,0 +1,33 @@
+[package]
+name = "ddns_rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+reqwest = { version = "^0.12.*", features = ["json", "gzip"] }
+futures = "0.3.*"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1.0.*"
+
+[profile.release]
+strip = true  # 自动从二进制文件去除符号信息.
+opt-level = "z"  #  二进制文件大小优化
+codegen-units = 1
+lto = "fat"          # 完全 LTO（编译慢但性能更好）
+panic = "abort"
+overflow-checks = false # 禁用整数溢出检查（提升速度，需确保安全）
+debug = false        # 禁用调试符号（减小体积）
+incremental = false  # 关闭增量编译，减少内存占用
+#rustflags = ["-C", "target-cpu=native"]
+
+
+[source.crates-io]
+replace-with = 'rsproxy-sparse'
+[source.rsproxy]
+registry = "https://rsproxy.cn/crates.io-index"
+[source.rsproxy-sparse]
+registry = "sparse+https://rsproxy.cn/index/"
+[registries.rsproxy]
+index = "https://rsproxy.cn/crates.io-index"
+[net]
+git-fetch-with-cli = true
