@@ -8,6 +8,7 @@ reqwest = { version = "^0.12.*", features = ["json", "gzip"] }
 futures = "0.3.*"
 tokio = { version = "1", features = ["full"] }
 anyhow = "1.0.*"
+openssl = { version = "0.10", features = ["vendored"] }
 
 [profile.release]
 strip = true  # 自动从二进制文件去除符号信息.
