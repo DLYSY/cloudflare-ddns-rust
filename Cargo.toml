@@ -8,9 +8,11 @@ reqwest = { version = "^0.12.*", default-features = false, features = ["json", "
 futures = "0.3.*"
 tokio = { version = "1", features = ["full"] }
 #anyhow = "1.0.*"
-#serde = { version = "1.0", features = ["derive"] }
-#serde_json = "1.0"
 json = "*"
+
+flexi_logger = { version = "0.29", features = ["async", "compress", "colors"] }
+log = "0.4"
+
 
 #这是另一种方法指定在musl编译时强制使用本地glibc-openssl，但导致二进制文件较大、perl依赖复杂，而且跨平台不通用，需要手工指定平台
 #[target.x86_64-unknown-linux-musl.dependencies] 
