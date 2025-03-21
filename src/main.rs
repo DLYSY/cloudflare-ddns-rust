@@ -4,7 +4,8 @@ use tokio;
 use std::sync::LazyLock;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
-use std::u8;
+// use std::u8;
+use std::env::current_exe;
 use std::fs::read_to_string;
 use std::time::Duration;
 use json::{self, JsonValue};
@@ -125,8 +126,17 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
 }
 
 fn main() {
+    let mut config_json_path = match current_exe() {
+        Ok(success) => success,
+        Err(_) => {
+            println!("文件系统错误！无法读取config.json");
+            return;
+        }
+    };
+    config_json_path.pop();
+    config_json_path.push("config.json");
 
-    let config_json_text = match read_to_string("A:/code myself/cloudflare-ddns-rust/config.json"){
+    let config_json_text = match read_to_string(config_json_path){
         Ok(success) => success,
         Err(_) => {
             println!("读取失败,请检查config.json是否存在并使用UTF-8编码");
