@@ -35,7 +35,7 @@ async fn ask_api(ip: IpAddr, info: &mut JsonValue) -> Result<(),()> {
             Ok(success) => {
                 if success.status().is_success(){
                     debug!("更新: {}, 类型: {}成功", info["name"], info["type"]);
-                    success
+                    // success
                 }else{
                     warn!("更新:{},类型:{}时服务器返回码:{}", info["name"], info["type"], success.status().as_u16());
                     return Err(());
@@ -78,7 +78,7 @@ async fn update_ip(ip_version: u8, global_config_json: &JsonValue){
 }
 
 async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
-    let url = format!("https://ipv{ip_version}.icanhazip.com/");
+    let url = format!("https://{ip_version}.ipw.cn/");
     let ip_response = match CLIENT.get(url).send().await{
         Ok(success) => {
             if success.status().is_success(){
@@ -152,19 +152,19 @@ fn main() {
         .log_to_file(FileSpec::default()
             .directory(log_path) //定义日志文件位置
             .basename("ddns")) //定义日志文件名，不包含后缀
-        .duplicate_to_stderr(Duplicate::Trace) //复制日志到控制台
+        .duplicate_to_stdout(Duplicate::Trace) //复制日志到控制台
         .rotate(
             Criterion::Age(Age::Day), // 按天轮转
             Naming::TimestampsCustomFormat {
                 current_infix: None,
-                format: "r%Y-%m-%d"
+                format: "%Y-%m-%d"
             },       // 文件名包含日期并以天为单位轮换
-            Cleanup::KeepLogFiles(15), // 保留15天日志
+            Cleanup::KeepCompressedFiles(15), // 保留15天日志并启用压缩
         )
         .format_for_stdout(colored_detailed_format) //控制台输出彩色带时间的日志格式
         .format_for_files(detailed_format) //文件中使用ANSI颜色会乱码，所以使用无颜色格式
         .write_mode(WriteMode::Async)
-        // .create_symlink("current_log")
+        .append() //指定日志文件为添加内容而不是覆盖重写
         .start()
         .unwrap();
 
