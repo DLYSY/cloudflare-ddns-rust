@@ -11,6 +11,7 @@ use json::{self, JsonValue};
 use flexi_logger::{Logger, Criterion, Naming, Cleanup, Age, Duplicate, FileSpec, WriteMode, colored_detailed_format,detailed_format};
 use log::{debug, error, info, warn, trace};
 
+// schtasks /create /tn test /sc MINUTE /mo 2 /tr a:\test.bat /ru System
 
 static CLIENT: LazyLock<Client> = LazyLock::new(||{
     ClientBuilder::new()
