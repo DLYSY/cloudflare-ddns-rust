@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: install musl lib
+      run: apt update && apt install musl-tools -y
     - name: add_target
       run: rustup target add x86_64-unknown-linux-musl
     - name: Build
