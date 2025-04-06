@@ -29,6 +29,8 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
+      - name: test default
+        run: rustup default
       - uses: actions/checkout@v4
       - name: Build
         run: cargo build --release
@@ -36,4 +38,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ddns_rust-windows-x86_64
-          path: target/release/ddns_rust
+          path: target/release/ddns_rust.exe
