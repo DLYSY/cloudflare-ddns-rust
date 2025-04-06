@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
     - name: install musl lib
-      run: apt update && apt install musl-tools -y
+      run: apt install musl-tools -y
     - name: add_target
       run: rustup target add x86_64-unknown-linux-musl
+    - uses: actions/checkout@v4
     - name: Build
       run: cargo build --target x86_64-unknown-linux-musl --release
     # - name: Run tests
