@@ -79,7 +79,8 @@ async fn update_ip(ip_version: u8, global_config_json: &JsonValue){
 }
 
 async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
-    let url = format!("https://{ip_version}.ipw.cn/");
+    // let url = format!("https://{ip_version}.ipw.cn/");
+    let url = format!("https://ipv{ip_version}.icanhazip.com/");
     let ip_response = match CLIENT.get(url).send().await{
         Ok(success) => {
             if success.status().is_success(){
@@ -109,7 +110,7 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
         }
     };
 
-    let _ = match ip_version {
+    match ip_version {
         4 => {
             match Ipv4Addr::from_str(ip_text.trim()) {
                 Ok(ip) => return Ok(IpAddr::V4(ip)),
@@ -132,7 +133,7 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
             error!("程序内部错误：get_ip函数获取到不可能的值{ip_version}");
             panic!();
         }
-    };
+    }
 }
 
 fn main() {
