@@ -1,22 +1,14 @@
 [package]
 name = "ddns_rust"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-reqwest = { version = "^0.12.*", default-features = false, features = ["json", "gzip", "rustls-tls", "http2"] } # openssl在musl编译会出错，所以关闭默认选项改用rustls
-futures = "0.3.*"
+reqwest = { version = "*", default-features = false, features = ["json", "gzip", "rustls-tls", "http2"] } # openssl在musl编译会出错，所以关闭默认选项改用rustls
+futures = "*"
 tokio = { version = "1", features = ["full"] }
-#anyhow = "1.0.*"
 json = "*"
-
-flexi_logger = { version = "0.31", features = ["async", "compress", "colors"] }
-log = "0.4"
-
-
-#这是另一种方法指定在musl编译时强制使用本地glibc-openssl，但导致二进制文件较大、perl依赖复杂，而且跨平台不通用，需要手工指定平台
-#[target.x86_64-unknown-linux-musl.dependencies] 
-#openssl = { version = "0.10", features = ["vendored"] }
+tklog = "*"
 
 [profile.release]
 strip = true  # 自动从二进制文件去除符号信息.
