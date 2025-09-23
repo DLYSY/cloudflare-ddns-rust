@@ -28,15 +28,3 @@ overflow-checks = false # 禁用整数溢出检查（提升速度，需确保安
 debug = false        # 禁用调试符号（减小体积）
 incremental = false  # 关闭增量编译，减少内存占用
 #rustflags = ["-C", "target-cpu=native"]
-
-
-[source.crates-io]
-replace-with = 'rsproxy-sparse'
-[source.rsproxy]
-registry = "https://rsproxy.cn/crates.io-index"
-[source.rsproxy-sparse]
-registry = "sparse+https://rsproxy.cn/index/"
-[registries.rsproxy]
-index = "https://rsproxy.cn/crates.io-index"
-[net]
-git-fetch-with-cli = true
