@@ -1,22 +1,172 @@
 # cloudflare-ddns-rust
 
+这是一个使用rust编写的cloudflare ddns脚本，由于大量使用了异步方法，速度极快。
+
+## 特点
+
+1. 使用rust编写，轻量、高效、安全。
+
+2. 大量使用异步api，io效率极高。
+
+3. 内置安装命令，无需自行编写定时任务脚本
+
+## 使用方法
+
+### 创建DNS记录
+
+脚本只能更新 DNS 记录对应的内容，不能自动创建 DNS 记录，请先自行创建 DNS 记录。
+
+创建的类型、名称、地址、TTL 等配置均不影响解析，脚本在解析时会自动转换对应记录。
+
+### 获取 zone id
+
+![zone id](asserts/get_zone_id.png)
+
+### 创建 API token
+
+**⚠️出于安全考虑，请不要使用全局API Key，该脚本也不支持这种使用方式！**
+
+1. 创建令牌：
+
+![alt text](asserts/get_api_key_1.png)
+
+2. 选择自定义：
+
+![alt text](asserts/get_api_key_2.png)
+
+3. 配置 Token
+
+![alt text](asserts/get_api_key_3.png)
+
+- 权限一栏至少需要 DNS 的读取和编辑权限。
+- 区域资源一栏可以选择“所有区域”，也可以只选择你要更新的域名。
+- 其他选项根据需要配置。
+
+4. 完成
+
+![alt text](asserts/get_api_key_4.png)
+
+这就是下面需要用到的 Token，**注意保存这个 Token，今后除非重新生成否则无法再次获取**。
+
+### 获取 dns id
+
+#### 类Unix系统请使用`curl`执行：
+
+```bash
+curl https://api.cloudflare.com/client/v4/zones/<Your Zone ID>/dns_records \
+    -H "Authorization: Bearer <Your API Token>"
+```
+
+可以获取到如下json：
+
+```json
+{
+    "result": [
+        {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "name": "www.example.com",
+            "type": "A",
+            "content": "0.0.0.0",
+            "proxiable": true,
+            "proxied": true,
+            "ttl": 180,
+            "settings": {},
+            "meta": {},
+            "comment": null,
+            "tags": [],
+            "created_on": "2000-01-01T00:00:00.000000Z",
+            "modified_on": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "name": "txt.example.com",
+            "type": "TXT",
+            "content": "abcdefg",
+            "proxiable": false,
+            "proxied": false,
+            "ttl": 180,
+            "settings": {},
+            "meta": {},
+            "comment": null,
+            "tags": [],
+            "created_on": "2000-01-01T00:00:00.000000Z",
+            "modified_on": "2000-01-01T00:00:00.000000Z"
+        }
+    ]
+}
+```
+
+#### Windows请使用 PowerShell 执行：
+
+```powershell
+$headers = @{
+    'Authorization' = 'Bearer <Your API Token>'
+}
+
+(irm -Headers $headers https://api.cloudflare.com/client/v4/zones/<Your Zone ID>/dns_records).result
+```
+
+如果您正在使用 PowerShell 6.0+，推荐使用安全字符串方法，系统会提示您输入Token：
+
+```powershell
+(irm https://api.cloudflare.com/client/v4/zones/<Your Zone ID>/dns_records -Authentication Bearer -Token (Read-Host -AsSecureString "Input API Token")).result
+```
+
+可以获取到如下结构：
+
+```
+id          : xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+name        : www.example.com
+type        : A
+content     : 0.0.0.0
+proxiable   : True
+proxied     : True
+ttl         : 180
+settings    :
+meta        :
+comment     :
+tags        : {}
+created_on  : 2000-01-01T00:00:00.000000Z
+modified_on : 2000-01-01T00:00:00.000000Z
+
+id          : xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+name        : txt.example.com
+type        : TXT
+content     : "abcdefg"
+proxiable   : False
+proxied     : False
+ttl         : 180
+settings    :
+meta        :
+comment     :
+tags        : {}
+created_on  : 2000-01-01T00:00:00.000000Z
+modified_on : 2000-01-01T00:00:00.000000Z
+```
+
+即可获得对应需要更新 DNS 的 `id:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+
+### 配置 DDNS
+
 与二进制文件同目录创建`config.json`，结构如下：
+
+
 
 ```json
 [
     {
-        "api_token":"<cloudflare api token，要求具有DNS操作权限>",
-        "zone_id":"<域名zone id>",
-        "dns_id": "<获取方式见下文>",
-        "type": "<A or AAAA，其他不支持>",
+        "api_token": "<Your API Token>",
+        "zone_id": "<Your Zone ID>",
+        "dns_id": "<刚才获取的dns_id>",
+        "type": "<A or AAAA，其他类型暂时不支持>",
         "name": "<www.example.com>",
         "ttl": <int>,
-        "proxied": <bool>
+        "proxied": <类型为bool,表示是否使用CDN>
     },
-    #<可以添加更多的记录，同字段配置方法类似>
+    #<可以重复添加更多的记录，同字段配置方法类似>
     {
-        "api_token":"",
-        "zone_id":"",
+        "api_token": "",
+        "zone_id": "",
         "dns_id": "",
         "type": "",
         "name": "example.com",
@@ -25,38 +175,119 @@
     }
 ]
 ```
-要获取dns id，可以执行
+
+### 安装与运行
+
+#### 要直接执行单次任务，请运行：
+```bash
+ddns_rust run
+```
+
+或者使用等价命令:
 
 ```bash
-curl https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records \
-    -H "Authorization: Bearer $API_TOKEN"
+ddns_rust run --once
 ```
 
-然后运行`<yourpath>/ddns_rust<.exe>`即可，会产生日志存放于`./logs`下。
+#### 要循环运行任务，请运行：
+```bash
+ddns_rust run --loops
+```
+循环周期为2分钟。
 
-如果需要服务，可以参考systemd-timer
+#### 要将其安装为服务，请以 root 权限（Windows 管理员权限）运行：
+```bash
+ddns_rust install service
+```
+服务的循环周期为2分钟。
 
-配置ddns.service
-```toml
-[Unit]
-Description = Cloudflare DDNS
+- 如果您正在使用Windows，该命令会创建名为`Cloudflare DDNS`的服务，启动方式为“自动（延迟启动）”。
 
-[Service]
-Type = oneshot
-ExecStart = <yourpath>/ddns_rust<.exe>
-
+- 如果您正在使用 Systemd 作为 init 的 Linux 发行版，该命令会在`/etc/systemd/system/`下创建`cloudflareddns.service`，您需要使用如下命令来启用它：
+```bash
+systemctl enable --now cloudflareddns.service
 ```
 
-配置ddns.timer
-```toml
-[Unit]
-Description = Cloudflare DDNS
+- 如果您正在使用其他非 Systemd 的类 Unix 系统，这条命令依然会尝试创建 `/etc/systemd/system/cloudflareddns.service`，但您可能无法使用该服务。
 
-[Timer]
-OnStartupSec = 1m
-OnUnitActiveSec = 90s # 自定义轮询时间
-
-[Install]
-WantedBy = timers.target
+#### 要将其安装为定时任务，请以 root 权限（Windows 管理员权限）运行：
+```bash
+ddns_rust install schedule
 ```
-然后将这俩个文件放入`/etc/systemd/system`，执行`systemctl enable --now ddns.timer`。
+任务的触发周期为2分钟。
+
+- 如果您正在使用Windows，该命令会创建名为`Cloudflare DDNS`的计划任务。
+
+- 如果您正在使用 Systemd 作为 init 的 Linux 发行版，该命令会在`/etc/systemd/system/`下创建 `cloudflareddns.service` 与 `cloudflareddns.timer`，您需要使用如下命令来启用它：
+```bash
+systemctl enable --now cloudflareddns.timer
+```
+
+- 如果您正在使用其他非 Systemd 的类 Unix 系统，这条命令依然会尝试创建 systemd timer，但您可能无法使用该任务计划。
+
+#### 要将其安装为cron任务，请运行：
+```bash
+ddns_rust install cron
+```
+任务的触发周期同样为2分钟。
+
+**⚠️这个命令只有在类 Unix 系统上才可用**，这会将任务添加到用户 cron 列表中。
+
+#### 使用 docker 运行（施工中）
+
+目前 docker 运行良好，但是并不提供编译好的版本，请参考 [DockerFile](Dockerfile) 自行编译
+
+### 日志
+
+无论使用那种方式安装和运行，日志均会存放于二进制文件目录 `./logs` 下。
+
+控制台也会输出日志
+
+### 卸载
+
+脚本的绝大多数文件包括 `config.json` 与 `./logs` 都与二进制文件位于同一位置。
+
+服务与定时任务相关文件请参考[安装与运行](###安装与运行)章节。
+
+## 命令行参考(施工中)
+```bash
+ddns_rust --help
+```
+
+## 编译(施工中)
+
+### Windows
+```bash
+cargo build --release
+```
+
+### Linux
+
+推荐使用 `musl` 进行静态链接，使用静态链接的好处非常多，比如可以使用 `scratch` 镜像进行构建容器。
+
+反直觉的是，由于 `musl` 本身的轻量化，得到的二进制文件无论内存占用还是文件大小都会比使用 `glibc` 动态链接要小。
+
+**⚠️虽然使用 `musl`，但是请不要在 Alpine Linux 上进行编译，这会得到一个动态链接的 `musl` 二进制文件，在之后的容器编译等步骤将会产生预期外情况⚠️**
+
+如果您坚持使用 `glibc`，这理论上是可行的，但是您将得不到技术上的支持和帮助。
+
+#### 安装 `musl` 工具链
+- Ubuntu：
+```bash
+apt install musl-tools
+```
+
+- Arch Linux：
+```bash
+pacman -S musl
+```
+
+#### 配置 rust 工具链
+```bash
+rustup target add x86_64-unknown-linux-musl
+```
+
+#### 编译
+```bash
+cargo build --release --target x86_64-unknown-linux-musl
+```

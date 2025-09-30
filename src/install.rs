@@ -23,7 +23,7 @@ pub fn service() -> Result<(), String> {
             "After=network.target",
             "[Service]",
             "Type=simple",
-            "ExecStart={} --loop",
+            "ExecStart={} run --loop",
             "Restart=on-failure",
             "KillSignal=SIGINT",
             "TimeoutStopSec=20",
@@ -50,7 +50,7 @@ pub async fn schedule() -> Result<(), String> {
                 "/mo",
                 "2",
                 "/tr",
-                format!("\"{}\" --once", std::env::current_exe().unwrap().display()).as_str(),
+                format!("\"{}\" run --once", std::env::current_exe().unwrap().display()).as_str(),
                 "/ru",
                 "System",
             ])
@@ -65,7 +65,7 @@ pub async fn schedule() -> Result<(), String> {
             "Description=CloudflareDDNS Once Service",
             "[Service]",
             "Type=oneshot",
-            "ExecStart={} --once",
+            "ExecStart={} run --once",
         )
         .replace("{}", current_exe().unwrap().to_str().unwrap());
 
@@ -92,7 +92,7 @@ pub async fn schedule() -> Result<(), String> {
 #[cfg(unix)]
 pub fn cron() -> Result<(), String> {
     let cron_job = format!(
-        "*/2 * * * * {} --once\n",
+        "*/2 * * * * {} run --once\n",
         std::env::current_exe().unwrap().display()
     );
     process::Command::new("sh")
