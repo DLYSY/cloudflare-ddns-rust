@@ -1,50 +1,57 @@
+use clap::Parser;
 use flexi_logger::{
-    colored_detailed_format, detailed_format, Age, Cleanup, Criterion, Duplicate, FileSpec, Logger,
-    Naming, WriteMode,
+    Age, Cleanup, Criterion, Duplicate, FileSpec, Logger, Naming, WriteMode,
+    colored_detailed_format, detailed_format,
 };
 use futures::future::join_all;
 use json::{self, JsonValue};
-use log::{debug, error, info, trace, warn};
-use reqwest::{self, Client, ClientBuilder};
-use std::env::current_exe;
-use std::fs::read_to_string;
+use log::{debug, error, info, warn};
+use reqwest::{self, Client, ClientBuilder, Version, retry};
+use std::env::{current_dir, current_exe};
+use std::fs;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
+use std::thread::spawn;
 use std::time::Duration;
-use tokio;
+use tokio::time::sleep;
+use tokio::{self, select, sync::Notify};
 
-// schtasks /create /tn test /sc MINUTE /mo 2 /tr a:\test.bat /ru System
+mod install;
+mod parse_args;
 
 static CLIENT: LazyLock<Client> = LazyLock::new(|| {
+    let time_out_secs = Duration::from_secs(5);
     ClientBuilder::new()
         .no_proxy()
+        .retry(retry::for_host("*").max_retries_per_request(3))
         .https_only(true)
+        .http2_prior_knowledge()
         .gzip(true)
-        .connect_timeout(Duration::new(5, 0))
-        .read_timeout(Duration::new(5, 0))
+        .connect_timeout(time_out_secs)
+        .read_timeout(time_out_secs)
         .build()
         .unwrap()
 });
 
 async fn ask_api(ip: IpAddr, info: &mut JsonValue) -> Result<(), ()> {
-    let api_url = format!(
-        "https://api.cloudflare.com/client/v4/zones/{}/dns_records/{}",
-        info.remove("zone_id"),
-        info.remove("dns_id")
-    );
-    let header = format!("Bearer {}", info.remove("api_token"));
     info["content"] = ip.to_string().into();
+
     match CLIENT
-        .put(api_url)
+        .put(format!(
+            "https://api.cloudflare.com/client/v4/zones/{}/dns_records/{}",
+            info.remove("zone_id"),
+            info.remove("dns_id")
+        ))
+        .bearer_auth(info.remove("api_token"))
         .body(info.dump())
         .header("Content-Type", "application/json")
-        .header("Authorization", header)
         .send()
         .await
     {
         Ok(success) => {
             if success.status().is_success() {
+                debug_assert_eq!(success.version(), Version::HTTP_2);
                 debug!("更新: {}, 类型: {}成功", info["name"], info["type"]);
                 // success
             } else {
@@ -97,11 +104,14 @@ async fn update_ip(ip_version: u8, global_config_json: &JsonValue) {
 }
 
 async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
-    // let url = format!("https://{ip_version}.ipw.cn/");
-    let url = format!("https://ipv{ip_version}.icanhazip.com/");
-    let ip_response = match CLIENT.get(url).send().await {
+    let ip_response = match CLIENT
+        .get(format!("https://ipv{ip_version}.icanhazip.com/"))
+        .send()
+        .await
+    {
         Ok(success) => {
             if success.status().is_success() {
+                debug_assert_eq!(success.version(), Version::HTTP_2);
                 success
             } else {
                 warn!(
@@ -115,7 +125,7 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
             if error.is_timeout() {
                 warn!("获取ipv{ip_version}时链接超时")
             } else if error.is_connect() {
-                warn!("获取ipv{ip_version}时链接错误")
+                warn!("获取ipv{ip_version}时链接错误{error}")
             } else {
                 warn!("获取ipv{ip_version}时发生未定义错误{}", error)
             }
@@ -153,27 +163,30 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
     }
 }
 
-fn main() {
-    let mut config_json_path = match current_exe() {
-        Ok(success) => success,
-        Err(_) => {
-            error!("文件系统错误！无法读取config.json");
-            return;
-        }
+async fn run(run_type: &str, exit_signal: Option<Arc<Notify>>) -> Result<(), String> {
+    let root_dir = if cfg!(debug_assertions) {
+        current_dir().expect("无法读取当前工作目录")
+    } else {
+        current_exe()
+            .expect("无法读取二进制文件路径")
+            .parent()
+            .expect("无法读取二进制文件所在目录")
+            .to_path_buf()
     };
-    config_json_path.pop();
-    let mut log_path = config_json_path.clone();
-    config_json_path.push("config.json");
-    log_path.push("logs");
+    let log_level = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "info"
+    };
 
-    let _logger = Logger::try_with_str("info")
-        .unwrap()
+    let _logger = Logger::try_with_str(log_level)
+        .map_err(|e| format!("无法创建logger,回溯错误:\n{e}"))?
         .log_to_file(
             FileSpec::default()
-                .directory(log_path) //定义日志文件位置
+                .directory(root_dir.join("logs")) //定义日志文件位置
                 .basename("ddns"),
         ) //定义日志文件名，不包含后缀
-        .duplicate_to_stdout(Duplicate::Trace) //复制日志到控制台
+        .duplicate_to_stdout(Duplicate::Debug) //复制日志到控制台
         .rotate(
             Criterion::Age(Age::Day), // 按天轮转
             Naming::TimestampsCustomFormat {
@@ -187,30 +200,31 @@ fn main() {
         .write_mode(WriteMode::Async)
         .append() //指定日志文件为添加内容而不是覆盖重写
         .start()
-        .unwrap();
+        .map_err(|e| format!("无法创建logger句柄,回溯错误:\n{e}"))?;
 
-    let config_json_text = match read_to_string(config_json_path) {
+    debug!("日志初始化成功");
+
+    let config_json_text = match fs::read_to_string(root_dir.join("config.json")) {
         Ok(success) => {
-            trace!("成功读取配置文件");
+            debug!("成功读取配置文件");
             success
         }
         Err(_) => {
             error!("读取失败,请检查config.json是否存在并使用UTF-8编码");
-            return;
+            return Err("读取失败,请检查config.json是否存在并使用UTF-8编码".to_string());
         }
     };
     let config_json = match json::parse(config_json_text.as_str()) {
         Ok(success) => {
-            trace!("成功解析json");
+            debug!("成功解析json");
             success
         }
         Err(_) => {
             error!("json文件格式不正确");
-            return;
+            return Err("json文件格式不正确".to_string());
         }
     };
-
-    // println!("{json_data}");
+    //let (_logger, config_json) = init_env()?;
     let mut have_ipv4 = false;
     let mut have_ipv6 = false;
 
@@ -227,24 +241,95 @@ fn main() {
         }
     }
 
-    let mut update_tasks = Vec::new();
-    if have_ipv4 {
-        update_tasks.push(update_ip(4, &config_json));
+    let run_once = || async {
+        let mut update_tasks = Vec::new();
+        if have_ipv4 {
+            update_tasks.push(update_ip(4, &config_json));
+        }
+        if have_ipv6 {
+            update_tasks.push(update_ip(6, &config_json));
+        }
+        join_all(update_tasks).await;
+        info!("本次更新完成");
+    };
+
+    match run_type {
+        "once" => {
+            run_once().await;
+            return Ok(());
+        }
+        "loop" => {
+            let exit_signal = exit_signal.unwrap_or_else(|| Arc::new(Notify::new()));
+            let exit_signal_recv = exit_signal.clone();
+            ctrlc::set_handler(move || {
+                debug!("开始退出");
+                exit_signal.notify_one();
+            })
+            .unwrap();
+            loop {
+                run_once().await;
+                select! {
+                    _ = sleep(Duration::from_secs(90))=>(),
+                    _ = exit_signal_recv.notified() => return Ok(())
+                }
+            }
+        }
+        _ => return Ok(()),
     }
-    if have_ipv6 {
-        update_tasks.push(update_ip(6, &config_json));
+}
+
+#[cfg(windows)]
+fn run_service_windows() -> Result<(), String> {
+    let mut task: Option<std::thread::JoinHandle<Result<(), String>>> = None;
+    let exit_signal = Arc::new(Notify::new());
+
+    windows_services::Service::new()
+        .can_stop()
+        .run(|_, command| match command {
+            windows_services::Command::Start => {
+                let signal = exit_signal.clone();
+                task = Some(spawn(|| {
+                    let rt = tokio::runtime::Runtime::new().unwrap();
+                    rt.block_on(run("loop", Some(signal)))
+                }));
+            }
+            windows_services::Command::Stop => {
+                exit_signal.notify_one();
+                task.take().unwrap().join().unwrap().unwrap();
+            }
+            _ => {}
+        })?;
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), String> {
+    #[cfg(windows)]
+    match run_service_windows() {
+        Ok(_) => return Ok(()),
+        Err(e) => {
+            if e != "Use service control manager to start service" {
+                return Err(e);
+            }
+        }
     }
 
-    let rt = match tokio::runtime::Runtime::new() {
-        Ok(success) => {
-            trace!("成功创建异步运行时");
-            success
+    let cli_args = parse_args::CliArgs::parse();
+
+    match cli_args.command {
+        parse_args::Commands::Run { once: _, loops } => {
+            if loops {
+                run("loop", None).await?;
+            } else {
+                run("once", None).await?;
+            }
         }
-        Err(error) => {
-            error!("无法创建异步运行时,回溯错误:{error}");
-            return;
-        }
-    };
-    rt.block_on(join_all(update_tasks));
-    info!("done");
+        parse_args::Commands::Install { component } => match component {
+            parse_args::InstallComponents::Service => install::service()?,
+            parse_args::InstallComponents::Schedule => install::schedule().await?,
+            #[cfg(unix)]
+            parse_args::InstallComponents::Cron => install::cron()?,
+        },
+    }
+    Ok(())
 }

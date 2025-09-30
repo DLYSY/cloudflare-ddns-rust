@@ -4,22 +4,36 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-reqwest = { version = "*", default-features = false, features = ["json", "gzip", "rustls-tls", "http2"] } # openssl在musl编译会出错，所以关闭默认选项改用rustls
+reqwest = { version = "*", default-features = false, features = [
+
+    "gzip",
+    "rustls-tls",
+    "http2",
+] } # openssl在musl编译会出错，所以关闭默认选项改用rustls
 futures = "*"
 tokio = { version = "1", features = ["full"] }
 json = "*"
+clap = { version = "*", features = ["derive"] }
+ctrlc = { version = "*", features = ["termination"] }
 
 flexi_logger = { version = "*", features = ["async", "compress", "colors"] }
 log = "*"
 
+[target.'cfg(windows)'.dependencies]
+windows-services = "*"
+
 
 [profile.release]
-strip = true  # 自动从二进制文件去除符号信息.
-opt-level = "z"  #  二进制文件大小优化
+strip = true             # 自动从二进制文件去除符号信息.
+opt-level = "z"          #  二进制文件大小优化
 codegen-units = 1
-lto = "fat"          # 完全 LTO（编译慢但性能更好）
+lto = "fat"              # 完全 LTO（编译慢但性能更好）
 panic = "abort"
-overflow-checks = false # 禁用整数溢出检查（提升速度，需确保安全）
-debug = false        # 禁用调试符号（减小体积）
-incremental = false  # 关闭增量编译，减少内存占用
-#rustflags = ["-C", "target-cpu=native"]
+overflow-checks = false  # 禁用整数溢出检查（提升速度，需确保安全）
+debug = false            # 禁用调试符号（减小体积）
+debug-assertions = false # 是否启用 debug-assertions（在 release 中通常关闭，以避免额外检查开销）
+incremental = false      # 关闭增量编译，减少内存占用
+
+# 为所有依赖也强制设置 opt-level
+[profile.release.package."*"]
+opt-level = "z"
