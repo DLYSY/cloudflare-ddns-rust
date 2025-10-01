@@ -18,16 +18,16 @@ pub fn service() -> Result<(), String> {
             .ok_or("创建服务失败，请检查是否有管理员权限")?;
     } else if cfg!(unix) {
         let service_file = concat!(
-            "[Unit]",
-            "Description=CloudflareDDNS Service",
-            "After=network.target",
-            "[Service]",
-            "Type=simple",
-            "ExecStart={} run --loops",
-            "Restart=on-failure",
-            "KillSignal=SIGINT",
-            "TimeoutStopSec=20",
-            "[Install]",
+            "[Unit]\n",
+            "Description=CloudflareDDNS Service\n",
+            "After=network.target\n\n",
+            "[Service]\n",
+            "Type=simple\n",
+            "ExecStart={} run --loops\n",
+            "Restart=on-failure\n",
+            "KillSignal=SIGINT\n",
+            "TimeoutStopSec=20\n\n",
+            "[Install]\n",
             "WantedBy=multi-user.target"
         )
         .replace("{}", current_exe().unwrap().to_str().unwrap());
@@ -61,22 +61,22 @@ pub async fn schedule() -> Result<(), String> {
             .ok_or("创建计划任务失败，请检查是否有管理员权限")?;
     } else if cfg!(unix) {
         let service_file = concat!(
-            "[Unit]",
-            "Description=CloudflareDDNS Once Service",
-            "[Service]",
-            "Type=oneshot",
+            "[Unit]\n",
+            "Description=CloudflareDDNS Once Service\n\n",
+            "[Service]\n",
+            "Type=oneshot\n",
             "ExecStart={} run --once",
         )
         .replace("{}", current_exe().unwrap().to_str().unwrap());
 
         let timer_file = concat!(
-            "[Unit]",
-            "Description=Runs CloudflareDDNS Once Service every 2 minutes",
-            "After=network.target",
-            "[Timer]",
-            "OnBootSec=2min",
-            "OnUnitActiveSec=2min",
-            "[Install]",
+            "[Unit]\n",
+            "Description=Runs CloudflareDDNS Once Service every 2 minutes\n",
+            "After=network.target\n\n",
+            "[Timer]\n",
+            "OnBootSec=2min\n",
+            "OnUnitActiveSec=2min\n\n",
+            "[Install]\n",
             "WantedBy=timers.target"
         );
 
