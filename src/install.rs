@@ -23,7 +23,7 @@ pub fn service() -> Result<(), String> {
             "After=network.target",
             "[Service]",
             "Type=simple",
-            "ExecStart={} run --loop",
+            "ExecStart={} run --loops",
             "Restart=on-failure",
             "KillSignal=SIGINT",
             "TimeoutStopSec=20",

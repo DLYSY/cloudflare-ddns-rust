@@ -257,9 +257,27 @@ ddns_rust --help
 ## 编译(施工中)
 
 ### Windows
+
+请使用`*-pc-windows-msvc`，由于使用了 Windows 服务相关 Win32API，最新版本`msvc`是建议选项（当前为 Visual Studio 2022），使用其他 target（`gnu`、`gnullvm`）是不建议也不会提供支持的。
+
+如果 rust 环境设置正确，从源码编译应该是非常简单的：
 ```bash
 cargo build --release
 ```
+
+Windows上默认设置了静态链接选项：
+```toml
+[target.'cfg(windows)']
+rustflags = ["-Ctarget-feature=+crt-static"]
+```
+这虽然不是 Microsoft 推荐的分发方式，但是作为一款轻量命令行工具，静态编译是必要的。
+
+如果您不需要静态链接，可以设置为动态链接到vc_runtime：
+```toml
+[target.'cfg(windows)']
+rustflags = ["-Ctarget-feature=-crt-static"]
+```
+具体请参考[rust手册](https://doc.rust-lang.org/reference/linkage.html)。
 
 ### Linux
 
