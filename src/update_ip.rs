@@ -1,7 +1,7 @@
 use futures::future::join_all;
 use json::{self, JsonValue};
-use log::{debug, error, warn};
-use reqwest::{self, Client, ClientBuilder, Version, retry};
+use log::{debug, warn};
+use reqwest::{self, Client, ClientBuilder, Version, retry, tls};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 use std::sync::LazyLock;
@@ -15,11 +15,16 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .https_only(true)
         .http2_prior_knowledge()
         .gzip(true)
+        .pool_idle_timeout(None)
         .connect_timeout(time_out_secs)
         .read_timeout(time_out_secs)
+        .min_tls_version(tls::Version::TLS_1_3)
         .build()
         .unwrap()
 });
+
+static mut IPV4ADDR: Option<Ipv4Addr> = None;
+static mut IPV6ADDR: Option<Ipv6Addr> = None;
 
 async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
     let ip_response = match CLIENT
@@ -74,10 +79,7 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
                 return Err(());
             }
         },
-        _ => {
-            error!("程序内部错误：get_ip函数获取到不可能的值{ip_version}");
-            panic!();
-        }
+        _ => unreachable!("程序内部错误：get_ip函数获取到不可能的值{ip_version}"),
     }
 }
 
@@ -137,6 +139,32 @@ pub async fn update_ip(ip_version: u8, global_config_json: &JsonValue) {
         }
         Err(_) => return,
     };
+    // 检查IP是否变化
+    unsafe {
+        if ip_version == 4 {
+            if let Some(old_ip) = IPV4ADDR {
+                if old_ip == ip {
+                    debug!("IPv4地址未改变，跳过更新");
+                    return;
+                }
+            }
+            IPV4ADDR = Some(match ip {
+                IpAddr::V4(ipv4) => ipv4,
+                _ => unreachable!(),
+            });
+        } else if ip_version == 6 {
+            if let Some(old_ip) = IPV6ADDR {
+                if old_ip == ip {
+                    debug!("IPv6地址未改变，跳过更新");
+                    return;
+                }
+            }
+            IPV6ADDR = Some(match ip {
+                IpAddr::V6(ipv6) => ipv6,
+                _ => unreachable!(),
+            });
+        }
+    }
 
     let mut self_config_json = global_config_json.clone();
     let mut ask_api_list = Vec::new();

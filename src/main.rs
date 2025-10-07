@@ -9,7 +9,6 @@ use log::{debug, error, info};
 use std::env::{current_dir, current_exe};
 use std::fs;
 use std::sync::{Arc, LazyLock};
-use std::thread::spawn;
 use std::time::Duration;
 use tokio::time::sleep;
 use tokio::{self, select, sync::Notify};
@@ -146,7 +145,7 @@ fn run_service_windows() -> Result<(), String> {
         .run(|_, command| match command {
             windows_services::Command::Start => {
                 let signal = exit_signal.clone();
-                task = Some(spawn(|| {
+                task = Some(std::thread::spawn(|| {
                     let _logger = init_log().unwrap();
                     let rt = tokio::runtime::Runtime::new().unwrap();
                     rt.block_on(run("loop", Some(signal)))

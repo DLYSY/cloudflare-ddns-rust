@@ -150,8 +150,6 @@ modified_on : 2000-01-01T00:00:00.000000Z
 
 与二进制文件同目录创建`config.json`，结构如下：
 
-
-
 ```json
 [
     {
@@ -258,7 +256,7 @@ ddns_rust --help
 
 ### Windows
 
-请使用`*-pc-windows-msvc`，由于使用了 Windows 服务相关 Win32API，最新版本`msvc`是建议选项（当前为 Visual Studio 2022），使用其他 target（`gnu`、`gnullvm`）是不建议也不会提供支持的。
+由于使用了 Windows 服务相关 Win32API，`cargo target`请使用`*-pc-windows-msvc`，最新版本`msvc`是建议选项（当前为 [Visual Studio 2022](https://visualstudio.microsoft.com/zh-hans/downloads/)），使用其他 target（`gnu`、`gnullvm`）是不建议也不会提供支持的。
 
 如果 rust 环境设置正确，从源码编译应该是非常简单的：
 ```bash
@@ -272,7 +270,7 @@ rustflags = ["-Ctarget-feature=+crt-static"]
 ```
 这虽然不是 Microsoft 推荐的分发方式，但是作为一款轻量命令行工具，静态编译是必要的。
 
-如果您不需要静态链接，可以设置为动态链接到vc_runtime：
+如果您不需要静态链接，可以在`./.cargo/config.toml`设置为动态链接到vc_runtime：
 ```toml
 [target.'cfg(windows)']
 rustflags = ["-Ctarget-feature=-crt-static"]
