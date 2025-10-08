@@ -246,17 +246,9 @@ ddns_rust install cron
 
 #### 使用 Docker 运行
 
-目前 容器目前测试运行良好，但是目前暂不提供编译好的版本，请先[编译二进制文件](#编译施工中)、然后执行容器编译。
+本项目支持容器化部署，容器托管在 [Quay.io](https://quay.io/repository/dlysy/cloudflareddns)
 
-##### Linux
-
-要编译 Linux 容器，请执行：
-
-```bash
-docker build -f Dockerfile.linux -t cloudflareddns:latest .
-```
-
-运行（根据需要自行修改）：
+Linux 用户命令参考（根据需要自行修改）：
 
 ```bash
 mkdir /srv/cloudflare-ddns-rust
@@ -264,25 +256,17 @@ mkdir /srv/cloudflare-ddns-rust
 docker run -d \
 -v /srv/cloudflare-ddns-rust/:/app/data \
 --network=host \
+--restart=always \
 --name=cloudflareddns \
-cloudflareddns:latest
+quay.io/dlysy/cloudflareddns:linux
 ```
 
-##### Windows
-
-要编译 Windows 容器执行，请执行：
-
-```powershell
-docker build -f Dockerfile.windows -t cloudflareddns:latest .
-```
-
-运行：
-
+Windows 用户命令参考：
 
 ```powershell
 mkdir D:\cloudflare-ddns-rust
 
-docker run -d -v D:\cloudflare-ddns-rust:C:\app\data --network=host --name=cloudflareddns cloudflareddns:latest
+docker run -d -v D:\cloudflare-ddns-rust:C:\app\data --network=host --restart=always --name=cloudflareddns quay.io/dlysy/cloudflareddns:windows
 ```
 
 更多关于Windows容器请参考[文档](https://learn.microsoft.com/zh-cn/virtualization/windowscontainers/quick-start/set-up-environment?tabs=dockerce)。
@@ -374,8 +358,6 @@ cargo build --release --target x86_64-unknown-linux-musl
 ### TODO
 
 - 增加卸载命令
-- CI-CD 增加容器
-- Windows 容器支持
 - OpenWrt 支持（低优先级）
 - OpenRC 支持（低优先级）
 
