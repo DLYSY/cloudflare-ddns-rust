@@ -17,8 +17,8 @@ mod install;
 mod parse_args;
 mod update_ip;
 
-static ROOT_DIR: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
-    if cfg!(debug_assertions) {
+static DATA_DIR: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
+    let root_dir = if cfg!(debug_assertions) {
         current_dir().expect("无法读取当前工作目录")
     } else {
         current_exe()
@@ -26,7 +26,8 @@ static ROOT_DIR: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
             .parent()
             .expect("无法读取二进制文件所在目录")
             .to_path_buf()
-    }
+    };
+    root_dir.join("data")
 });
 
 fn init_log() -> Result<LoggerHandle, String> {
@@ -39,7 +40,7 @@ fn init_log() -> Result<LoggerHandle, String> {
         .unwrap()
         .log_to_file(
             FileSpec::default()
-                .directory(ROOT_DIR.join("logs")) //定义日志文件位置
+                .directory(DATA_DIR.join("logs")) //定义日志文件位置
                 .basename("ddns"),
         ) //定义日志文件名，不包含后缀
         .duplicate_to_stdout(Duplicate::Debug) //复制日志到控制台
@@ -62,7 +63,7 @@ fn init_log() -> Result<LoggerHandle, String> {
 }
 
 async fn run(run_type: &str, exit_signal: Option<Arc<Notify>>) -> Result<(), String> {
-    let config_json_text = match fs::read_to_string(ROOT_DIR.join("config.json")) {
+    let config_json_text = match fs::read_to_string(DATA_DIR.join("config.json")) {
         Ok(success) => {
             debug!("成功读取配置文件");
             success

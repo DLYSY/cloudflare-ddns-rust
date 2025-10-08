@@ -4,7 +4,7 @@
 
 ## 特点
 
-1. 使用rust编写，轻量、高效、安全。
+1. 使用Rust编写，轻量、高效、安全。
 
 2. 大量使用异步api，io效率极高。
 
@@ -24,7 +24,7 @@
 
 ### 创建 API token
 
-**⚠️出于安全考虑，请不要使用全局API Key，该脚本也不支持这种使用方式！**
+**⚠️出于安全考虑，请不要使用全局API Key，本项目也不支持这种使用方式！**
 
 1. 创建令牌：
 
@@ -50,14 +50,14 @@
 
 ### 获取 dns id
 
-#### 类Unix系统请使用`curl`执行：
+#### 类 Unix 系统请使用 `curl` 执行：
 
 ```bash
 curl https://api.cloudflare.com/client/v4/zones/<Your Zone ID>/dns_records \
     -H "Authorization: Bearer <Your API Token>"
 ```
 
-可以获取到如下json：
+可以获取到如下 json：
 
 ```json
 {
@@ -96,20 +96,20 @@ curl https://api.cloudflare.com/client/v4/zones/<Your Zone ID>/dns_records \
 }
 ```
 
-#### Windows请使用 PowerShell 执行：
+#### Windows 请使用 PowerShell 执行：
 
 ```powershell
 $headers = @{
     'Authorization' = 'Bearer <Your API Token>'
 }
 
-(irm -Headers $headers https://api.cloudflare.com/client/v4/zones/<Your Zone ID>/dns_records).result
+(Invoke-RestMethod -Headers $headers https://api.cloudflare.com/client/v4/zones/<Your Zone ID>/dns_records).result
 ```
 
 如果您正在使用 PowerShell 6.0+，推荐使用安全字符串方法，系统会提示您输入Token：
 
 ```powershell
-(irm https://api.cloudflare.com/client/v4/zones/<Your Zone ID>/dns_records -Authentication Bearer -Token (Read-Host -AsSecureString "Input API Token")).result
+(Invoke-RestMethod https://api.cloudflare.com/client/v4/zones/<Your Zone ID>/dns_records -Authentication Bearer -Token (Read-Host -AsSecureString "Input API Token")).result
 ```
 
 可以获取到如下结构：
@@ -148,7 +148,7 @@ modified_on : 2000-01-01T00:00:00.000000Z
 
 ### 配置 DDNS
 
-与二进制文件同目录创建`config.json`，结构如下：
+在二进制文件目录创建`data/config.json`，结构如下：
 
 ```json
 [
@@ -201,18 +201,19 @@ ddns_rust run --once
 ```bash
 ddns_rust run --loops
 ```
-循环周期为2分钟。
+循环周期为1分钟。
 
 #### 要将其安装为服务，请以 root 权限（Windows 管理员权限）运行：
 
 ```bash
 ddns_rust install service
 ```
-服务的循环周期为2分钟。
+服务的循环周期为1分钟。
 
 - 如果您正在使用Windows，该命令会创建名为`Cloudflare DDNS`的服务，启动方式为“自动（延迟启动）”。
 
-- 如果您正在使用 Systemd 作为 init 的 Linux 发行版，该命令会在`/etc/systemd/system/`下创建`cloudflareddns.service`，您需要使用如下命令来启用它：
+- 如果您正在使用 systemd 作为 init 的 Linux 发行版，该命令会在`/etc/systemd/system/`下创建`cloudflareddns.service`，您需要使用如下命令来启用它：
+  
 ```bash
 systemctl enable --now cloudflareddns.service
 ```
@@ -227,14 +228,15 @@ ddns_rust install schedule
 
 - 如果您正在使用Windows，该命令会创建名为`Cloudflare DDNS`的计划任务。
 
-- 如果您正在使用 Systemd 作为 init 的 Linux 发行版，该命令会在`/etc/systemd/system/`下创建 `cloudflareddns.service` 与 `cloudflareddns.timer`，您需要使用如下命令来启用它：
+- 如果您正在使用 systemd 作为 init 的 Linux 发行版，该命令会在`/etc/systemd/system/`下创建 `cloudflareddns.service` 与 `cloudflareddns.timer`，您需要使用如下命令来启用它：
 ```bash
 systemctl enable --now cloudflareddns.timer
 ```
 
-- 如果您正在使用其他非 Systemd 的类 Unix 系统，这条命令依然会尝试创建 systemd timer，但您可能无法使用该任务计划。
+- 如果您正在使用其他非 systemd 的类 Unix 系统，这条命令依然会尝试创建 systemd timer，但您可能无法使用该任务计划。
 
 #### 要将其安装为cron任务，请运行：
+
 ```bash
 ddns_rust install cron
 ```
@@ -244,39 +246,59 @@ ddns_rust install cron
 
 #### 使用 Docker 运行
 
-目前 容器在 [Docker](https://www.docker.com/) 与 [Podman](https://podman.io/) 上测试运行良好，但是目前暂不提供编译好的版本，请先[编译二进制文件](#linux)、然后执行容器编译：
+目前 容器目前测试运行良好，但是目前暂不提供编译好的版本，请先[编译二进制文件](#编译施工中)、然后执行容器编译。
+
+##### Linux
+
+要编译 Linux 容器，请执行：
 
 ```bash
-docker build --tag cloudflareddns:latest .
+docker build -f Dockerfile.linux -t cloudflareddns:latest .
 ```
 
-即可运行（可根据需要自行修改）：
+运行（根据需要自行修改）：
 
 ```bash
-mkdir -p /srv/cloudflare-ddns-rust/logs
+mkdir /srv/cloudflare-ddns-rust
 
 docker run -d \
--v /srv/cloudflare-ddns-rust/logs/:/app/logs \
--v /srv/cloudflare-ddns-rust/config.json:/app/config.json \
+-v /srv/cloudflare-ddns-rust/:/app/data \
 --network=host \
 --name=cloudflareddns \
 cloudflareddns:latest
 ```
 
+##### Windows
+
+要编译 Windows 容器执行，请执行：
+
+```powershell
+docker build -f Dockerfile.windows -t cloudflareddns:latest .
+```
+
+运行：
+
+
+```powershell
+mkdir D:\cloudflare-ddns-rust
+
+docker run -d -v D:\cloudflare-ddns-rust:C:\app\data --network=host --name=cloudflareddns cloudflareddns:latest
+```
+
+更多关于Windows容器请参考[文档](https://learn.microsoft.com/zh-cn/virtualization/windowscontainers/quick-start/set-up-environment?tabs=dockerce)。
 
 ### 日志
 
-无论使用那种方式安装和运行，日志均会存放于二进制文件目录 `./logs` 下。
+无论使用那种方式安装和运行，日志均会存放于二进制文件目录 `data/logs` 下。
 
 控制台也会同步输出日志，Docker 等使用方式应该可以从中受益。
 
 ### 卸载
 
-脚本的绝大多数文件包括 `config.json` 与 `./logs` 都与二进制文件位于同一位置。
-
-服务与定时任务相关文件请参考[安装与运行](#安装与运行)章节。
+删除服务与定时任务相关文件即可，请参考[安装与运行](#安装与运行)章节。
 
 ## 命令行参考(施工中)
+
 ```bash
 ddns_rust --help
 ```
@@ -285,25 +307,30 @@ ddns_rust --help
 
 ### Windows
 
-由于使用了 Windows 服务相关 Win32API，`cargo target`请使用`*-pc-windows-msvc`，最新版本`msvc`是建议选项（当前为 [Visual Studio 2022](https://visualstudio.microsoft.com/zh-hans/downloads/)），使用其他 target（`gnu`、`gnullvm`）是不建议也不会提供支持的。
+由于使用了 Windows 服务相关 Win32API，`cargo target`请使用`*-pc-windows-msvc`，最新版本`msvc`是建议选项（当前为 Visual Studio 2022），使用其他 target（`gnu`、`gnullvm`）是不建议也不会提供支持的。
 
 如果 rust 环境设置正确，从源码编译应该是非常简单的：
-```bash
+
+```powershell
 cargo build --release
 ```
 
 Windows上默认设置了静态链接选项：
+
 ```toml
 [target.'cfg(windows)']
 rustflags = ["-Ctarget-feature=+crt-static"]
 ```
+
 这虽然不是 Microsoft 推荐的分发方式，但是作为一款轻量命令行工具，静态编译是必要的。
 
 如果您不需要静态链接，可以在`./.cargo/config.toml`设置为动态链接到vc_runtime：
+
 ```toml
 [target.'cfg(windows)']
 rustflags = ["-Ctarget-feature=-crt-static"]
 ```
+
 具体请参考[rust手册](https://doc.rust-lang.org/reference/linkage.html)。
 
 ### Linux
@@ -317,22 +344,27 @@ rustflags = ["-Ctarget-feature=-crt-static"]
 如果您坚持使用 `glibc`，这理论上是可行的，但是您将得不到技术上的支持和帮助。
 
 #### 安装 `musl` 工具链
+
 - Ubuntu：
+
 ```bash
 apt install musl-tools
 ```
 
 - Arch Linux：
+
 ```bash
 pacman -S musl
 ```
 
 #### 配置 rust 工具链
+
 ```bash
 rustup target add x86_64-unknown-linux-musl
 ```
 
 #### 编译
+
 ```bash
 cargo build --release --target x86_64-unknown-linux-musl
 ```
@@ -344,15 +376,15 @@ cargo build --release --target x86_64-unknown-linux-musl
 - 增加卸载命令
 - CI-CD 增加容器
 - Windows 容器支持
+- OpenWrt 支持（低优先级）
+- OpenRC 支持（低优先级）
 
 ### NOT TODO
 
 - **支持Mac**：脚本也以进行单独的运行，理论上可以使用，但鉴于本人无任何 Mac 设备，且使用 Mac 作服务器用途本就是小众需求，故不计划对 Mac 进行测试。
   
-- **支持各种 BSD 等非 Linux 类 Unix 系统**：这些系统最大的问题是没有统一的二进制文件标准，理论上来说只要 `Rust` 支持这些系统就可以进行编译，但我不会进行测试。这些系统的 init 也同样混乱，如果您确实需要使用，建议尝试 [cron](#要将其安装为cron任务请运行)。
+- **支持各种 BSD、SysV、Termux 等其他系统**：这些系统从二进制文件到 init 都十分混乱，理论上来说只要 `Rust` 支持这些系统就可以进行编译，但我不会进行测试。如果您确实需要使用，建议尝试[安装为 cron](#要将其安装为cron任务请运行)。
   
 - **支持非 x86_64 架构设备（包括x86_32也不会支持）**：本人无其他架构服务器设备，无法进行测试，但如果你具有相关条件进行测试并发现问题，欢迎提交 PR。
   
-- **支持移动设备（如Termux）**：《小众的玩具》
-
-- **支持 windows-gnullvm、windows-gnu、uwp-windows 与 win7-windows 等奇葩 windows target**
+- **支持 windows-gnullvm、windows-gnu、uwp-windows 与 win7-windows 等奇葩 windows target**：由于项目使用了 Win32 API，这些 target 可能无法正常运行。
