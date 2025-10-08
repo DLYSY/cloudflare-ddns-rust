@@ -1,4 +1,2 @@
-# [target."*"]
-# rustflags = ["-Ctarget-feature=+crt-static","--cfg=reqwest_unstable"]
 [target.'cfg(windows)']
 rustflags = ["-Ctarget-feature=+crt-static"]

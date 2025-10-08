@@ -176,7 +176,16 @@ modified_on : 2000-01-01T00:00:00.000000Z
 
 ### 安装与运行
 
+绝大多数情况下，推荐使用 `--loops` 方式（服务的本质也是使用`--loops`），这具有单次执行（定时任务的本质是定时执行单次任务）所不具有的优势：
+
+1. 不需要重复初始化网络、日志等资源。
+2. 循环模式下脚本会保存 IP 直到发生变化才会进行更新，这不但降低了网络开销，也避免了频繁调用导致超出 Cloudflare API 调用速度限制。
+3. 可以保持链接加快网络请求速度。
+   
+**⚠️`config.json` 仅在启动时加载一次，将在下次重启脚本时生效，如果您确实需要频繁调整 `config.json` 使用 `--once` 或注册为定时任务可能是更好的选择**
+
 #### 要直接执行单次任务，请运行：
+
 ```bash
 ddns_rust run
 ```
@@ -188,12 +197,14 @@ ddns_rust run --once
 ```
 
 #### 要循环运行任务，请运行：
+
 ```bash
 ddns_rust run --loops
 ```
 循环周期为2分钟。
 
 #### 要将其安装为服务，请以 root 权限（Windows 管理员权限）运行：
+
 ```bash
 ddns_rust install service
 ```
@@ -231,15 +242,33 @@ ddns_rust install cron
 
 **⚠️这个命令只有在类 Unix 系统上才可用**，这会将任务添加到用户 cron 列表中。
 
-#### 使用 docker 运行（施工中）
+#### 使用 Docker 运行
 
-目前 docker 运行良好，但是并不提供编译好的版本，请参考 [DockerFile](Dockerfile) 自行编译
+目前 容器在 [Docker](https://www.docker.com/) 与 [Podman](https://podman.io/) 上测试运行良好，但是目前暂不提供编译好的版本，请先[编译二进制文件](#linux)、然后执行容器编译：
+
+```bash
+docker build --tag cloudflareddns:latest .
+```
+
+即可运行（可根据需要自行修改）：
+
+```bash
+mkdir -p /srv/cloudflare-ddns-rust/logs
+
+docker run -d \
+-v /srv/cloudflare-ddns-rust/logs/:/app/logs \
+-v /srv/cloudflare-ddns-rust/config.json:/app/config.json \
+--network=host \
+--name=cloudflareddns \
+cloudflareddns:latest
+```
+
 
 ### 日志
 
 无论使用那种方式安装和运行，日志均会存放于二进制文件目录 `./logs` 下。
 
-控制台也会输出日志
+控制台也会同步输出日志，Docker 等使用方式应该可以从中受益。
 
 ### 卸载
 
@@ -307,3 +336,23 @@ rustup target add x86_64-unknown-linux-musl
 ```bash
 cargo build --release --target x86_64-unknown-linux-musl
 ```
+
+## 路线图
+
+### TODO
+
+- 增加卸载命令
+- CI-CD 增加容器
+- Windows 容器支持
+
+### NOT TODO
+
+- **支持Mac**：脚本也以进行单独的运行，理论上可以使用，但鉴于本人无任何 Mac 设备，且使用 Mac 作服务器用途本就是小众需求，故不计划对 Mac 进行测试。
+  
+- **支持各种 BSD 等非 Linux 类 Unix 系统**：这些系统最大的问题是没有统一的二进制文件标准，理论上来说只要 `Rust` 支持这些系统就可以进行编译，但我不会进行测试。这些系统的 init 也同样混乱，如果您确实需要使用，建议尝试 [cron](#要将其安装为cron任务请运行)。
+  
+- **支持非 x86_64 架构设备（包括x86_32也不会支持）**：本人无其他架构服务器设备，无法进行测试，但如果你具有相关条件进行测试并发现问题，欢迎提交 PR。
+  
+- **支持移动设备（如Termux）**：《小众的玩具》
+
+- **支持 windows-gnullvm、windows-gnu、uwp-windows 与 win7-windows 等奇葩 windows target**
