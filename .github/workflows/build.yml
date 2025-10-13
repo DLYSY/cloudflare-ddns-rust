@@ -34,7 +34,7 @@ jobs:
       run: docker build -f Dockerfile.linux -t quay.io/dlysy/cloudflareddns:linux .
 
     - name: quay.io login
-      uses: docker/login-action@v2
+      uses: docker/login-action@v3
       with:
         registry: quay.io
         username: ${{ secrets.QUAY_IO_USERNAME }}
@@ -63,7 +63,7 @@ jobs:
         run: docker build -f Dockerfile.windows -t quay.io/dlysy/cloudflareddns:windows .
 
       - name: quay.io login
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_IO_USERNAME }}
