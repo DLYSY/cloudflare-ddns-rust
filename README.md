@@ -8,7 +8,7 @@
 
 2. 大量使用异步api，io效率极高。
 
-3. 内置安装命令，无需自行编写定时任务脚本
+3. 内置安装命令，无需自行编写定时任务脚本。
 
 ## 使用方法
 
@@ -266,8 +266,10 @@ Windows 用户命令参考：
 ```powershell
 mkdir D:\cloudflare-ddns-rust
 
-docker run -d -v D:\cloudflare-ddns-rust:C:\app\data --network=host --restart=always --name=cloudflareddns quay.io/dlysy/cloudflareddns:windows
+docker run -d -v D:\cloudflare-ddns-rust:C:\app\data --restart=always --name=cloudflareddns quay.io/dlysy/cloudflareddns:windows
 ```
+
+由于 Windows 上的 Docker 无法直接访问宿主机网络，因此需要关注 IPv6 的可用性。
 
 更多关于Windows容器请参考[文档](https://learn.microsoft.com/zh-cn/virtualization/windowscontainers/quick-start/set-up-environment?tabs=dockerce)。
 

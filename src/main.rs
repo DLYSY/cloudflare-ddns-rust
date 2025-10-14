@@ -1,17 +1,21 @@
-use clap::Parser;
-use flexi_logger::{
-    Age, Cleanup, Criterion, Duplicate, FileSpec, Logger, LoggerHandle, Naming, WriteMode,
-    colored_detailed_format, detailed_format,
-};
-use futures::future::join_all;
-use json::{self};
-use log::{debug, error, info};
+// std
 use std::env::{current_dir, current_exe};
 use std::fs;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
+// 日志
+use flexi_logger::{
+    Age, Cleanup, Criterion, Duplicate, FileSpec, Logger, LoggerHandle, Naming, WriteMode,
+    colored_detailed_format, detailed_format,
+};
+use log::{debug, error, info};
+// 异步
+use futures::future::join_all;
 use tokio::time::sleep;
-use tokio::{self, select, sync::Notify};
+use tokio::{select, sync::Notify};
+// 环境
+use json;
+use clap::Parser;
 
 mod install;
 mod parse_args;
@@ -30,8 +34,8 @@ static DATA_DIR: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
     root_dir.join("data")
 });
 
-fn init_log() -> Result<LoggerHandle, String> {
-    let log_level = if cfg!(debug_assertions) {
+fn init_log(debug_mod: bool) -> Result<LoggerHandle, String> {
+    let log_level = if cfg!(debug_assertions) || debug_mod {
         "debug"
     } else {
         "info"
@@ -174,8 +178,8 @@ async fn main() -> Result<(), String> {
     }
 
     match parse_args::CliArgs::parse().command {
-        parse_args::Commands::Run { once: _, loops } => {
-            let _logger = init_log()?;
+        parse_args::Commands::Run { once: _, loops ,debug} => {
+            let _logger = init_log(debug)?;
             if loops {
                 run("loop", None).await?;
             } else {
