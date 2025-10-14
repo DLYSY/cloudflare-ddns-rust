@@ -151,7 +151,7 @@ fn run_service_windows() -> Result<(), String> {
             windows_services::Command::Start => {
                 let signal = exit_signal.clone();
                 task = Some(std::thread::spawn(|| {
-                    let _logger = init_log().unwrap();
+                    let _logger = init_log(false).unwrap();
                     let rt = tokio::runtime::Runtime::new().unwrap();
                     rt.block_on(run("loop", Some(signal)))
                 }));
