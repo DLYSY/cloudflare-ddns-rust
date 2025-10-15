@@ -97,19 +97,19 @@ async fn run(run_type: &str, exit_signal: Option<Arc<Notify>>) -> Result<(), Str
             let exit_signal = exit_signal.unwrap_or_else(|| Arc::new(Notify::new()));
             let exit_signal_recv = exit_signal.clone();
             ctrlc::set_handler(move || {
-                debug!("开始退出");
+                debug!("退出中...");
                 exit_signal.notify_one();
             })
             .unwrap();
             loop {
                 run_once().await;
                 select! {
-                    _ = sleep(Duration::from_secs(90))=>(),
+                    _ = sleep(Duration::from_secs(60))=>(),
                     _ = exit_signal_recv.notified() => return Ok(())
                 }
             }
         }
-        _ => return Ok(()),
+        _ => unreachable!(),
     }
 }
 

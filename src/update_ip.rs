@@ -173,29 +173,30 @@ pub async fn update_ip(ip_version: u8, config_json: Arc<Vec<&load_conf::DnsRecor
     };
     // 检查IP是否变化
     unsafe {
-        if ip_version == 4 {
-            if let Some(old_ip) = IPV4ADDR {
-                if old_ip == ip {
-                    debug!("IPv4地址未改变，跳过更新");
-                    return;
+        match ip {
+            IpAddr::V4(ipv4) => {
+                debug!("当前IPv4地址为: {ipv4}");
+                if let Some(old_ip) = IPV4ADDR {
+                    if old_ip == ip {
+                        debug!("IPv4地址未改变，跳过更新");
+                        return;
+                    }
                 }
+                IPV4ADDR = Some(ipv4);
             }
-            IPV4ADDR = Some(match ip {
-                IpAddr::V4(ipv4) => ipv4,
-                _ => unreachable!(),
-            });
-        } else if ip_version == 6 {
-            if let Some(old_ip) = IPV6ADDR {
-                if old_ip == ip {
-                    debug!("IPv6地址未改变，跳过更新");
-                    return;
+            IpAddr::V6(ipv6) => {
+                debug!("当前IPv6地址为: {ipv6}");
+                if let Some(old_ip) = IPV6ADDR {
+                    if old_ip == ip {
+                        debug!("IPv6地址未改变，跳过更新");
+                        return;
+                    } else {
+                        IPV6ADDR = Some(ipv6);
+                    }
                 }
+                IPV6ADDR = Some(ipv6);
             }
-            IPV6ADDR = Some(match ip {
-                IpAddr::V6(ipv6) => ipv6,
-                _ => unreachable!(),
-            });
-        }
+        };
     }
 
     future::join_all(config_json.iter().map(|&x| ask_api(ip, x))).await;
