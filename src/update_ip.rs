@@ -1,11 +1,13 @@
-use futures::future::join_all;
-use json::{self, JsonValue};
+use futures::future;
 use log::{debug, warn};
 use reqwest::{self, Client, ClientBuilder, Version, retry, tls};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 use std::sync::LazyLock;
 use std::time::Duration;
+
+use crate::load_conf;
+// mod load_conf;
 
 static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     let time_out_secs = Duration::from_secs(5);
@@ -83,17 +85,19 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
     }
 }
 
-async fn ask_api(ip: IpAddr, info: &mut JsonValue) -> Result<(), ()> {
-    info["content"] = ip.to_string().into();
+async fn ask_api(ip: IpAddr, info: &load_conf::DnsRecord) -> Result<(), ()> {
+    let mut info = info.clone();
+    info.content = Some(ip.to_string());
 
     match CLIENT
         .put(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/dns_records/{}",
-            info.remove("zone_id"),
-            info.remove("dns_id")
+            info.zone_id.take().unwrap(),
+            info.dns_id.take().unwrap()
         ))
-        .bearer_auth(info.remove("api_token"))
-        .body(info.dump())
+        .bearer_auth(info.api_token.take().unwrap())
+        .json(&info)
+        // .body(info.dump())
         .header("Content-Type", "application/json")
         .send()
         .await
@@ -101,13 +105,13 @@ async fn ask_api(ip: IpAddr, info: &mut JsonValue) -> Result<(), ()> {
         Ok(success) => {
             if success.status().is_success() {
                 debug_assert_eq!(success.version(), Version::HTTP_2);
-                debug!("更新: {}, 类型: {}成功", info["name"], info["type"]);
+                debug!("更新: {}, 类型: {}成功", info.name, info.record_type);
                 // success
             } else {
                 warn!(
                     "更新:{},类型:{}时服务器返回码:{}",
-                    info["name"],
-                    info["type"],
+                    info.name,
+                    info.record_type,
                     success.status().as_u16()
                 );
                 return Err(());
@@ -116,13 +120,13 @@ async fn ask_api(ip: IpAddr, info: &mut JsonValue) -> Result<(), ()> {
         Err(error) => {
             debug!("{error}");
             if error.is_timeout() {
-                warn!("更新:{},类型:{}时链接超时", info["name"], info["type"]);
+                warn!("更新:{},类型:{}时链接超时", info.name, info.record_type);
             } else if error.is_connect() {
-                warn!("更新:{},类型:{}时链接错误", info["name"], info["type"]);
+                warn!("更新:{},类型:{}时链接错误", info.name, info.record_type);
             } else {
                 warn!(
                     "更新{}类型{}时发生未知错误:{}",
-                    info["name"], info["type"], error
+                    info.name, info.record_type, error
                 );
             }
             return Err(());
@@ -131,7 +135,12 @@ async fn ask_api(ip: IpAddr, info: &mut JsonValue) -> Result<(), ()> {
     Ok(())
 }
 
-pub async fn update_ip(ip_version: u8, global_config_json: &JsonValue) {
+pub async fn update_ip(ip_version: u8, global_config_json: Vec<&load_conf::DnsRecord>) {
+    if global_config_json.is_empty() {
+        debug!("没有需要更新的IPv{ip_version}记录");
+        return;
+    }
+
     let ip = match get_ip(ip_version).await {
         Ok(success) => {
             debug!("获取IPv{ip_version}成功");
@@ -165,15 +174,6 @@ pub async fn update_ip(ip_version: u8, global_config_json: &JsonValue) {
             });
         }
     }
-
-    let mut self_config_json = global_config_json.clone();
-    let mut ask_api_list = Vec::new();
-    for i in self_config_json.members_mut() {
-        if i["type"] == "A" && ip_version == 4 {
-            ask_api_list.push(ask_api(ip, i));
-        } else if i["type"] == "AAAA" && ip_version == 6 {
-            ask_api_list.push(ask_api(ip, i));
-        }
-    }
-    join_all(ask_api_list).await;
+    
+    future::join_all(global_config_json.iter().map(|&x| ask_api(ip, x))).await;
 }
