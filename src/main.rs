@@ -67,19 +67,23 @@ fn init_log(debug_mod: bool) -> Result<LoggerHandle, String> {
 async fn run(run_type: &str, exit_signal: Option<Arc<Notify>>) -> Result<(), String> {
     let config_json = load_conf::init_conf()?;
 
-    let run_once = || async {
-        let ipv4_config: Vec<&load_conf::DnsRecord> = config_json
+    let ipv4_config: Arc<Vec<&load_conf::DnsRecord>> = Arc::new(
+        config_json
             .iter()
             .filter(|&x| x.record_type == "A")
-            .collect();
-        let ipv6_config: Vec<&load_conf::DnsRecord> = config_json
+            .collect(),
+    );
+    let ipv6_config: Arc<Vec<&load_conf::DnsRecord>> = Arc::new(
+        config_json
             .iter()
             .filter(|&x| x.record_type == "AAAA")
-            .collect();
+            .collect(),
+    );
 
+    let run_once = || async {
         tokio::join!(
-            update_ip::update_ip(4, ipv4_config),
-            update_ip::update_ip(6, ipv6_config)
+            update_ip::update_ip(4, ipv4_config.clone()),
+            update_ip::update_ip(6, ipv6_config.clone())
         );
         info!("本次更新完成");
     };

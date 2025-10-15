@@ -1,17 +1,16 @@
 use log::{debug, error};
 use std::{fs, io};
 
-#[derive(Debug, serde::Deserialize,serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize)]
 pub struct DnsRecord {
-    pub api_token: Option<String>,
-    pub zone_id: Option<String>,
-    pub dns_id: Option<String>,
+    pub api_token: String,
+    pub zone_id: String,
+    pub dns_id: String,
     #[serde(rename = "type")]
     pub record_type: String,
     pub name: String,
     pub ttl: u32,
     pub proxied: bool,
-    pub content: Option<String>,
 }
 
 pub fn init_conf() -> Result<Vec<DnsRecord>, String> {
@@ -23,14 +22,14 @@ pub fn init_conf() -> Result<Vec<DnsRecord>, String> {
         }
     };
 
-        match serde_json::from_reader(io::BufReader::new(config_file)) {
-            Ok(success) => {
-                debug!("成功解析配置文件");
-                return Ok(success);
-            }
-            Err(_) => {
-                error!("config.json 格式不正确");
-                return Err("config.json 格式不正确".to_string());
-            }
-        };
+    match serde_json::from_reader(io::BufReader::new(config_file)) {
+        Ok(success) => {
+            debug!("成功解析配置文件");
+            return Ok(success);
+        }
+        Err(error) => {
+            error!("config.json 格式不正确：\n {}", error);
+            return Err("config.json 格式不正确".to_string());
+        }
+    };
 }
