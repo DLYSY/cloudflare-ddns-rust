@@ -1,6 +1,5 @@
 // std
 use std::env::{current_dir, current_exe};
-use std::fs;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 // 日志
@@ -8,20 +7,19 @@ use flexi_logger::{
     Age, Cleanup, Criterion, Duplicate, FileSpec, Logger, LoggerHandle, Naming, WriteMode,
     colored_detailed_format, detailed_format,
 };
-use log::{debug, error, info};
+use log::{debug, info};
 // 异步
-use futures::future::join_all;
 use tokio::time::sleep;
 use tokio::{select, sync::Notify};
 // 环境
-use json;
 use clap::Parser;
 
 mod install;
+mod load_conf;
 mod parse_args;
 mod update_ip;
 
-static DATA_DIR: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
+pub static DATA_DIR: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
     let root_dir = if cfg!(debug_assertions) {
         current_dir().expect("无法读取当前工作目录")
     } else {
@@ -67,51 +65,26 @@ fn init_log(debug_mod: bool) -> Result<LoggerHandle, String> {
 }
 
 async fn run(run_type: &str, exit_signal: Option<Arc<Notify>>) -> Result<(), String> {
-    let config_json_text = match fs::read_to_string(DATA_DIR.join("config.json")) {
-        Ok(success) => {
-            debug!("成功读取配置文件");
-            success
-        }
-        Err(_) => {
-            error!("读取失败,请检查config.json是否存在并使用UTF-8编码");
-            return Err("读取失败,请检查config.json是否存在并使用UTF-8编码".to_string());
-        }
-    };
-    let config_json = match json::parse(config_json_text.as_str()) {
-        Ok(success) => {
-            debug!("成功解析json");
-            success
-        }
-        Err(_) => {
-            error!("json文件格式不正确");
-            return Err("json文件格式不正确".to_string());
-        }
-    };
-    let mut have_ipv4 = false;
-    let mut have_ipv6 = false;
+    let config_json = load_conf::init_conf()?;
 
-    for i in config_json.members() {
-        if i["type"] == "A" {
-            debug!("找到A记录需要解析");
-            have_ipv4 = true;
-        } else if i["type"] == "AAAA" {
-            debug!("找到AAAA记录需要解析");
-            have_ipv6 = true;
-        }
-        if have_ipv4 && have_ipv6 {
-            break;
-        }
-    }
+    let ipv4_config: Arc<Vec<&load_conf::DnsRecord>> = Arc::new(
+        config_json
+            .iter()
+            .filter(|&x| x.record_type == "A")
+            .collect(),
+    );
+    let ipv6_config: Arc<Vec<&load_conf::DnsRecord>> = Arc::new(
+        config_json
+            .iter()
+            .filter(|&x| x.record_type == "AAAA")
+            .collect(),
+    );
 
     let run_once = || async {
-        let mut update_tasks = Vec::new();
-        if have_ipv4 {
-            update_tasks.push(update_ip::update_ip(4, &config_json));
-        }
-        if have_ipv6 {
-            update_tasks.push(update_ip::update_ip(6, &config_json));
-        }
-        join_all(update_tasks).await;
+        tokio::join!(
+            update_ip::update_ip(4, ipv4_config.clone()),
+            update_ip::update_ip(6, ipv6_config.clone())
+        );
         info!("本次更新完成");
     };
 
@@ -178,7 +151,11 @@ async fn main() -> Result<(), String> {
     }
 
     match parse_args::CliArgs::parse().command {
-        parse_args::Commands::Run { once: _, loops ,debug} => {
+        parse_args::Commands::Run {
+            once: _,
+            loops,
+            debug,
+        } => {
             let _logger = init_log(debug)?;
             if loops {
                 run("loop", None).await?;

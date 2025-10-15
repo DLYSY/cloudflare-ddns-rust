@@ -5,17 +5,18 @@ edition = "2024"
 
 [dependencies]
 reqwest = { version = "*", default-features = false, features = [
-
+    "json",
     "gzip",
     "rustls-tls",
     "http2",
 ] } # openssl在musl编译会出错，所以关闭默认选项改用rustls
 futures = "*"
 tokio = { version = "1", features = ["full"] }
-json = "*"
+# json = "*"
 clap = { version = "*", features = ["derive"] }
 ctrlc = { version = "*", features = ["termination"] }
-
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
 flexi_logger = { version = "*", features = ["async", "compress", "colors"] }
 log = "*"
 
