@@ -27,7 +27,7 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .https_only(true)
         .http2_prior_knowledge()
         .gzip(true)
-        .pool_idle_timeout(None)
+        .pool_idle_timeout(Duration::from_secs(180))
         .connect_timeout(time_out_secs)
         .read_timeout(time_out_secs)
         .min_tls_version(tls::Version::TLS_1_3)
@@ -44,18 +44,7 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
         .send()
         .await
     {
-        Ok(success) => {
-            if success.status().is_success() {
-                debug_assert_eq!(success.version(), Version::HTTP_2);
-                success
-            } else {
-                warn!(
-                    "获取ipv{ip_version}时状态码不正确{}",
-                    success.status().as_u16()
-                );
-                return Err(());
-            }
-        }
+        Ok(success) => success,
         Err(error) => {
             if error.is_timeout() {
                 warn!("获取ipv{ip_version}时链接超时")
@@ -67,6 +56,14 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
             return Err(());
         }
     };
+
+    if !ip_response.status().is_success() {
+        warn!(
+            "获取ipv{ip_version}时状态码不正确{}",
+            ip_response.status().as_u16()
+        );
+        return Err(());
+    }
 
     let ip_text = match ip_response.text().await {
         Ok(success) => success,
@@ -118,12 +115,7 @@ async fn ask_api(ip: IpAddr, info: &load_conf::DnsRecord) -> Result<(), ()> {
         Ok(success) => {
             if success.status().is_success() {
                 debug_assert_eq!(success.version(), Version::HTTP_2);
-                debug!(
-                    "更新: {}, 类型: {}成功",
-                    json_body.name, json_body.record_type
-                );
-                debug!("{}", serde_json::to_string(&json_body).unwrap())
-                // success
+                debug!(" 成功: {}", serde_json::to_string(&json_body).unwrap());
             } else {
                 warn!(
                     "更新:{},类型:{}时服务器返回码:{}",
@@ -166,16 +158,16 @@ pub async fn update_ip(ip_version: u8, config_json: Arc<Vec<&load_conf::DnsRecor
 
     let ip = match get_ip(ip_version).await {
         Ok(success) => {
-            debug!("获取IPv{ip_version}成功");
+            debug!("获取成功，当前IPv{ip_version}地址为：{success}");
             success
         }
         Err(_) => return,
     };
+
     // 检查IP是否变化
     unsafe {
         match ip {
             IpAddr::V4(ipv4) => {
-                debug!("当前IPv4地址为: {ipv4}");
                 if let Some(old_ip) = IPV4ADDR {
                     if old_ip == ip {
                         debug!("IPv4地址未改变，跳过更新");
@@ -185,13 +177,10 @@ pub async fn update_ip(ip_version: u8, config_json: Arc<Vec<&load_conf::DnsRecor
                 IPV4ADDR = Some(ipv4);
             }
             IpAddr::V6(ipv6) => {
-                debug!("当前IPv6地址为: {ipv6}");
                 if let Some(old_ip) = IPV6ADDR {
                     if old_ip == ip {
                         debug!("IPv6地址未改变，跳过更新");
                         return;
-                    } else {
-                        IPV6ADDR = Some(ipv6);
                     }
                 }
                 IPV6ADDR = Some(ipv6);
