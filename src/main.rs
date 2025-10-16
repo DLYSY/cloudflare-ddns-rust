@@ -70,13 +70,13 @@ async fn run(run_type: &str, exit_signal: Option<Arc<Notify>>) -> Result<(), Str
     let ipv4_config: Arc<Vec<&load_conf::DnsRecord>> = Arc::new(
         config_json
             .iter()
-            .filter(|&x| x.record_type == "A")
+            .filter(|&x| x.record_type == Arc::new("A".to_string()))
             .collect(),
     );
     let ipv6_config: Arc<Vec<&load_conf::DnsRecord>> = Arc::new(
         config_json
             .iter()
-            .filter(|&x| x.record_type == "AAAA")
+            .filter(|&x| x.record_type == Arc::new("AAAA".to_string()))
             .collect(),
     );
 

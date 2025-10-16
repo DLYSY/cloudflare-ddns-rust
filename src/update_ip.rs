@@ -12,8 +12,8 @@ use crate::load_conf;
 #[derive(Debug, serde::Serialize)]
 struct ApiBody {
     #[serde(rename = "type")]
-    record_type: String,
-    name: String,
+    record_type: Arc<String>,
+    name: Arc<String>,
     ttl: u32,
     proxied: bool,
     content: String,

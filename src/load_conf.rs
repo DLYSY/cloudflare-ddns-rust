@@ -1,14 +1,14 @@
 use log::{debug, error};
-use std::{fs, io};
+use std::{fs, io, sync::Arc};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct DnsRecord {
-    pub api_token: String,
+    pub api_token: Arc<String>,
     pub zone_id: String,
     pub dns_id: String,
     #[serde(rename = "type")]
-    pub record_type: String,
-    pub name: String,
+    pub record_type: Arc<String>,
+    pub name: Arc<String>,
     pub ttl: u32,
     pub proxied: bool,
 }
