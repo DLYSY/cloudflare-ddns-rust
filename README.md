@@ -1,14 +1,23 @@
 # cloudflare-ddns-rust
 
-这是一个使用rust编写的cloudflare ddns脚本，由于大量使用了异步方法，速度极快。
+这是一个使用rust编写的本人自用 Cloudflare DDNS 脚本，使用了 Rust 高效异步方法构建，速度极快。
 
 ## 特点
 
 1. 使用Rust编写，轻量、高效、安全。
 
-2. 大量使用异步api，io效率极高。
+2. 大量使用异步 api，io效率极高。
 
-3. 内置安装命令，无需自行编写定时任务脚本。
+3. 跨平台多种部署方式：
+    - Windows 服务（支持暂停服务）
+    - Windows 任务计划
+    - systemd 服务
+    - systemd timer
+    - cron
+    - Docker
+    - 直接使用二进制文件
+
+4. 静态二进制，无 OpenSSL、glibc 等复杂依赖。
 
 ## 使用方法
 
@@ -161,7 +170,7 @@ modified_on : 2000-01-01T00:00:00.000000Z
         "ttl": <int>,
         "proxied": <类型为bool,表示是否使用CDN>
     },
-    #<可以重复添加更多的记录，同字段配置方法类似>
+    //<可以重复添加更多的记录，同字段配置方法类似>
     {
         "api_token": "",
         "zone_id": "",
@@ -293,7 +302,9 @@ ddns_rust --help
 
 ### Windows
 
-由于使用了 Windows 服务相关 Win32API，`cargo target`请使用`*-pc-windows-msvc`，最新版本`msvc`是建议选项（当前为 Visual Studio 2022），使用其他 target（`gnu`、`gnullvm`）是不建议也不会提供支持的。
+由于使用了 Windows 服务相关 Win32API，`cargo target`请使用`*-pc-windows-msvc`，最新版本`msvc`是建议选项（当前为 Visual Studio 2022），使用其他 target（~~`gnu`~~、`gnullvm`）是不建议也不会提供支持的。
+
+*在当前（2025年10月）的 Arch Linux 上使用 `mingw-w64-gcc` 在 `x86_64-pc-windows-gnu` 下进行跨平台编译得到的二进制文件功能完全正常（包括 Service 相关 API 也可以正常运行），但这依然不是推荐的使用方式。*
 
 如果 rust 环境设置正确，从源码编译应该是非常简单的：
 
@@ -371,7 +382,7 @@ cargo build --release --target x86_64-unknown-linux-musl
   
 - **支持非 x86_64 架构设备（包括x86_32也不会支持）**：本人无其他架构服务器设备，无法进行测试，但如果你具有相关条件进行测试并发现问题，欢迎提交 PR。
   
-- **支持 windows-gnullvm、windows-gnu、uwp-windows 与 win7-windows 等奇葩 windows target**：由于项目使用了 Win32 API，这些 target 可能无法正常运行。
+- **支持 Windows8.1 及更低版本 Windows**：系统过于老旧，Rust 工具链本身支持有限。
 
 - **监控 `config.json` 以便 `--loops` 模式下无需重启自动读取新配置**：这种非原子操作实现复杂的同时还非常危险；且更新设置后重启是非常常见的设计，综合各种原因不会支持这种用法。这里举个两个栗子：
   1. 你配置写了一半然后按了保存，结果这个写了一半配置不是合法 json，于是整个程序因为无法正确读取而直接崩溃了。

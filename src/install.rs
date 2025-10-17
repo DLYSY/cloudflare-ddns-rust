@@ -3,13 +3,33 @@ use std::process;
 
 pub fn service() -> Result<(), String> {
     if cfg!(windows) {
+        let (service_name, start_type, service_command) = if cfg!(debug_assertions) {
+            (
+                "CloudflareDDNS(debug)",
+                "start=demand",
+                format!(
+                    "\"{}\" run --loops --debug",
+                    std::env::current_exe().unwrap().display()
+                ),
+            )
+        } else {
+            (
+                "CloudflareDDNS",
+                "start=delayed-auto",
+                format!(
+                    "\"{}\" run --loops",
+                    std::env::current_exe().unwrap().display()
+                ),
+            )
+        };
+
         process::Command::new("sc")
             .args([
                 "create",
-                "CloudflareDDNS",
-                "start=delayed-auto",
+                service_name,
+                start_type,
                 "binPath=",
-                format!("\"{}\" run --loops", std::env::current_exe().unwrap().display()).as_str(),
+                service_command.as_str(),
             ])
             .status()
             .map_err(|e| format!("创建服务失败，回溯错误：{e}"))?
@@ -50,7 +70,11 @@ pub async fn schedule() -> Result<(), String> {
                 "/mo",
                 "2",
                 "/tr",
-                format!("\"{}\" run --once", std::env::current_exe().unwrap().display()).as_str(),
+                format!(
+                    "\"{}\" run --once",
+                    std::env::current_exe().unwrap().display()
+                )
+                .as_str(),
                 "/ru",
                 "System",
             ])

@@ -7,10 +7,12 @@ use flexi_logger::{
     Age, Cleanup, Criterion, Duplicate, FileSpec, Logger, LoggerHandle, Naming, WriteMode,
     colored_detailed_format, detailed_format,
 };
+#[cfg(windows)]
+use log::error;
 use log::{debug, info};
 // 异步
+use tokio::sync::watch::{self, Receiver, Sender};
 use tokio::time::sleep;
-use tokio::{select, sync::Notify};
 // 环境
 use clap::Parser;
 #[cfg(windows)]
@@ -66,7 +68,11 @@ fn init_log(debug_mod: bool) -> Result<LoggerHandle, String> {
     Ok(logger)
 }
 
-async fn run(run_type: &str, exit_signal: Option<Arc<Notify>>) -> Result<(), String> {
+async fn run(
+    run_type: &str,
+    tx: Sender<&'static str>,
+    rx: Receiver<&'static str>,
+) -> Result<(), String> {
     let config_json = load_conf::init_conf()?;
 
     let ipv4_config: Arc<Vec<&load_conf::DnsRecord>> = Arc::new(
@@ -96,18 +102,28 @@ async fn run(run_type: &str, exit_signal: Option<Arc<Notify>>) -> Result<(), Str
             return Ok(());
         }
         "loop" => {
-            let exit_signal = exit_signal.unwrap_or_else(|| Arc::new(Notify::new()));
-            let exit_signal_recv = exit_signal.clone();
+            let mut rx2 = rx.clone();
+            #[cfg(windows)]
+            let mut rx3 = rx.clone();
+
             ctrlc::set_handler(move || {
                 debug!("退出中...");
-                exit_signal.notify_one();
+                tx.send("stop").unwrap();
             })
             .unwrap();
+
             loop {
                 run_once().await;
-                select! {
+
+                tokio::select! {
+                    _ = rx2.wait_for(|&val| val == "stop") => return Ok(()),
                     _ = sleep(Duration::from_secs(60))=>(),
-                    _ = exit_signal_recv.notified() => return Ok(())
+                }
+
+                #[cfg(windows)]
+                tokio::select! {
+                    _ = rx2.wait_for(|&val| val != "pause")=>(),
+                    _ = rx3.wait_for(|&val| val == "stop") => return Ok(()),
                 }
             }
         }
@@ -117,24 +133,43 @@ async fn run(run_type: &str, exit_signal: Option<Arc<Notify>>) -> Result<(), Str
 
 #[cfg(windows)]
 fn run_service_windows() -> Result<(), String> {
-    let mut task: Option<std::thread::JoinHandle<Result<(), String>>> = None;
-    let exit_signal = Arc::new(Notify::new());
+    let mut task: Option<std::thread::JoinHandle<()>> = None;
 
-    Service::new().can_stop().run(|_, command| match command {
-        Command::Start => {
-            let exit_signal_clone = exit_signal.clone();
+    let (tx, rx) = watch::channel("");
 
-            task = Some(std::thread::spawn(|| {
-                let rt_run = tokio::runtime::Runtime::new().unwrap();
-                rt_run.block_on(run("loop", Some(exit_signal_clone)))
-            }));
-        }
-        Command::Stop => {
-            exit_signal.notify_one();
-            task.take().unwrap().join().unwrap().unwrap();
-        }
-        _ => unreachable!(),
-    })?;
+    Service::new()
+        .can_stop()
+        .can_pause()
+        .run(|_, command| match command {
+            Command::Start => {
+                let tx2 = tx.clone();
+                let rx2 = rx.clone();
+                task = Some(std::thread::spawn(|| {
+                    let rt_run = tokio::runtime::Runtime::new().unwrap();
+                    match rt_run.block_on(run("loop", tx2, rx2)) {
+                        Ok(()) => (),
+                        Err(_) => {
+                            error!("检测到服务环境，强制退出进程...");
+                            std::process::exit(1)
+                        }
+                    }
+                }));
+            }
+            Command::Stop => {
+                debug!("服务退出中...");
+                tx.send("stop").unwrap();
+                task.take().unwrap().join().unwrap();
+            }
+            Command::Pause => {
+                debug!("收到暂停信号");
+                tx.send("pause").unwrap();
+            }
+            Command::Resume => {
+                debug!("取消暂停，恢复运行...");
+                tx.send("").unwrap();
+            }
+            _ => unreachable!(),
+        })?;
     Ok(())
 }
 
@@ -157,9 +192,11 @@ async fn main() -> Result<(), String> {
                         }
                     }
                 }
-                run("loop", None).await?;
+                let (tx, rx) = watch::channel("");
+                run("loop", tx, rx).await?;
             } else {
-                run("once", None).await?;
+                let (tx, rx) = watch::channel("");
+                run("once", tx, rx).await?;
             }
         }
         parse_args::Commands::Install { component } => match component {
