@@ -9,7 +9,7 @@ pub fn service() -> Result<(), String> {
                 "CloudflareDDNS",
                 "start=delayed-auto",
                 "binPath=",
-                format!("\"{}\"", std::env::current_exe().unwrap().display()).as_str(),
+                format!("\"{}\" run --loops", std::env::current_exe().unwrap().display()).as_str(),
             ])
             .status()
             .map_err(|e| format!("创建服务失败，回溯错误：{e}"))?

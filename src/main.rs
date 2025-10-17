@@ -13,6 +13,8 @@ use tokio::time::sleep;
 use tokio::{select, sync::Notify};
 // 环境
 use clap::Parser;
+#[cfg(windows)]
+use windows_services::{Command, Service};
 
 mod install;
 mod load_conf;
@@ -118,38 +120,26 @@ fn run_service_windows() -> Result<(), String> {
     let mut task: Option<std::thread::JoinHandle<Result<(), String>>> = None;
     let exit_signal = Arc::new(Notify::new());
 
-    windows_services::Service::new()
-        .can_stop()
-        .run(|_, command| match command {
-            windows_services::Command::Start => {
-                let signal = exit_signal.clone();
-                task = Some(std::thread::spawn(|| {
-                    let _logger = init_log(false).unwrap();
-                    let rt = tokio::runtime::Runtime::new().unwrap();
-                    rt.block_on(run("loop", Some(signal)))
-                }));
-            }
-            windows_services::Command::Stop => {
-                exit_signal.notify_one();
-                task.take().unwrap().join().unwrap().unwrap();
-            }
-            _ => {}
-        })?;
+    Service::new().can_stop().run(|_, command| match command {
+        Command::Start => {
+            let exit_signal_clone = exit_signal.clone();
+
+            task = Some(std::thread::spawn(|| {
+                let rt_run = tokio::runtime::Runtime::new().unwrap();
+                rt_run.block_on(run("loop", Some(exit_signal_clone)))
+            }));
+        }
+        Command::Stop => {
+            exit_signal.notify_one();
+            task.take().unwrap().join().unwrap().unwrap();
+        }
+        _ => unreachable!(),
+    })?;
     Ok(())
 }
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
-    #[cfg(windows)]
-    match run_service_windows() {
-        Ok(_) => return Ok(()),
-        Err(e) => {
-            if e != "Use service control manager to start service" {
-                return Err(e);
-            }
-        }
-    }
-
     match parse_args::CliArgs::parse().command {
         parse_args::Commands::Run {
             once: _,
@@ -158,6 +148,15 @@ async fn main() -> Result<(), String> {
         } => {
             let _logger = init_log(debug)?;
             if loops {
+                #[cfg(windows)]
+                match run_service_windows() {
+                    Ok(_) => return Ok(()),
+                    Err(e) => {
+                        if e != "Use service control manager to start service" {
+                            return Err(e);
+                        }
+                    }
+                }
                 run("loop", None).await?;
             } else {
                 run("once", None).await?;
