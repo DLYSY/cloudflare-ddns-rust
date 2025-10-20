@@ -5,9 +5,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
-
-use crate::load_conf;
-// mod load_conf;
+use super::load_conf;
 
 #[derive(Debug, serde::Serialize)]
 struct ApiBody {

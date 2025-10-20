@@ -1,5 +1,6 @@
 use log::{debug, error};
 use std::{fs, io, sync::Arc};
+use crate::obj::DATA_DIR;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct DnsRecord {
@@ -14,7 +15,7 @@ pub struct DnsRecord {
 }
 
 pub fn init_conf() -> Result<Vec<DnsRecord>, String> {
-    let config_file = match fs::File::open(crate::DATA_DIR.join("config.json")) {
+    let config_file = match fs::File::open(DATA_DIR.join("config.json")) {
         Ok(success) => success,
         Err(_) => {
             error!("找不到 config.json");
