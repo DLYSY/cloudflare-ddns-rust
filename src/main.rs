@@ -4,6 +4,7 @@ mod run;
 mod obj;
 mod install;
 mod parse_args;
+mod uninstall;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -35,6 +36,12 @@ async fn main() -> Result<(), String> {
             #[cfg(unix)]
             parse_args::InstallComponents::Cron => install::cron()?,
         },
+        parse_args::Commands::Uninstall { component } => match component {
+            parse_args::UninstallComponents::Service => uninstall::service()?,
+            parse_args::UninstallComponents::Schedule => uninstall::schedule().await?,
+            #[cfg(unix)]
+            parse_args::InstallComponents::Cron => uninstall::cron()?,
+        }
     }
     Ok(())
 }

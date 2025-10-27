@@ -290,7 +290,7 @@ docker run -d -v D:\cloudflare-ddns-rust:C:\app\data --restart=always --name=clo
 
 ### 卸载
 
-删除服务与定时任务相关文件即可，请参考[安装与运行](#安装与运行)章节。
+请参考[安装与运行](#安装与运行)章节，将安装的 `install` 命令改成 `uninstall` 即可。
 
 ## 命令行参考(施工中)
 
@@ -298,7 +298,7 @@ docker run -d -v D:\cloudflare-ddns-rust:C:\app\data --restart=always --name=clo
 ddns_rust --help
 ```
 
-## 编译(施工中)
+## 编译
 
 ### Windows
 
@@ -370,14 +370,16 @@ cargo build --release --target x86_64-unknown-linux-musl
 
 ### TODO
 
-- 增加卸载命令
-- OpenWrt 支持（低优先级）
-- OpenRC 支持（低优先级）
+- 优化配置文件，支持调整更新间隔等参数。
+- OpenWrt 支持（低优先级，现阶段建议使用[安装为 cron](#要将其安装为cron任务请运行)）
+- OpenRC 支持：极低优先级（甚至可能会降级为 [NOT TODO](#not-todo)），Alpine 和 Gentoo 实在没啥人用作，如果你确实需要同样建议[安装为 cron](#要将其安装为cron任务请运行)。
 
 ### NOT TODO
 
-- **支持Mac**：脚本也以进行单独的运行，理论上可以使用，但鉴于本人无任何 Mac 设备，且使用 Mac 作服务器用途本就是小众需求，故不计划对 Mac 进行测试。
-  
+- **支持 MX 等其他记录类型**：使用太少，很多记录类型比如 SSHFP、NAPTR 都不太明白具体用途。可能会用得上的就是 MX 记录，MX 记录本身类似于 CNAME 记录需要指向一个域名，所以直接在对应的域名上使用 DDNS 即可。
+
+- **支持Mac**：项目二进制文件可以进行单独的使用，理论上可以配合 cron 使用，但鉴于本人无任何 Mac 设备，故不计划对 Mac 进行测试。
+
 - **支持各种 BSD、SysV、Termux 等其他系统**：这些系统从二进制文件到 init 都十分混乱，理论上来说只要 `Rust` 支持这些系统就可以进行编译，但我不会进行测试。如果您确实需要使用，建议尝试[安装为 cron](#要将其安装为cron任务请运行)。
   
 - **支持非 x86_64 架构设备（包括x86_32也不会支持）**：本人无其他架构服务器设备，无法进行测试，但如果你具有相关条件进行测试并发现问题，欢迎提交 PR。
