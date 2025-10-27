@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use log::{debug, error, info};
 use std::sync::{Arc, LazyLock};
 use tokio::sync::watch::{self, Receiver, Sender};

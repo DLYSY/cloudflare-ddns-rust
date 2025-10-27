@@ -40,7 +40,7 @@ async fn main() -> Result<(), String> {
             parse_args::UninstallComponents::Service => uninstall::service()?,
             parse_args::UninstallComponents::Schedule => uninstall::schedule().await?,
             #[cfg(unix)]
-            parse_args::InstallComponents::Cron => uninstall::cron()?,
+            parse_args::UninstallComponents::Cron => uninstall::cron()?,
         }
     }
     Ok(())
