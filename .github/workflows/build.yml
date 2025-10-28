@@ -24,7 +24,7 @@ jobs:
     - name: Build
       run: cargo build --target x86_64-unknown-linux-musl --release
 
-    - name: Archive production artifacts
+    - name: Archive Bin
       uses: actions/upload-artifact@v5
       with:
         name: ddns_rust-linux-x86_64
@@ -42,6 +42,17 @@ jobs:
 
     - name: Push to quay.io
       run: docker push quay.io/dlysy/cloudflareddns:linux
+
+    - name: Build Skylake
+      env: 
+        RUSTFLAGS: -C target-cpu=skylake
+      run: cargo build --target x86_64-unknown-linux-musl --release
+    
+    - name: Archive Bin (Skylake)
+      uses: actions/upload-artifact@v5
+      with:
+        name: ddns_rust-linux-x86_64-skylake
+        path: target/x86_64-unknown-linux-musl/release/ddns_rust
 
 
 
