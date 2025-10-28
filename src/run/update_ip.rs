@@ -1,21 +1,11 @@
+use super::load_conf;
 use futures::future;
 use log::{debug, warn};
 use reqwest::{self, Client, ClientBuilder, Version, retry, tls};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
-use std::sync::{Arc, LazyLock};
+use std::sync::LazyLock;
 use std::time::Duration;
-use super::load_conf;
-
-#[derive(Debug, serde::Serialize)]
-struct ApiBody {
-    #[serde(rename = "type")]
-    record_type: Arc<String>,
-    name: Arc<String>,
-    ttl: u32,
-    proxied: bool,
-    content: String,
-}
 
 static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     let time_out_secs = Duration::from_secs(5);
@@ -91,20 +81,30 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
 }
 
 async fn ask_api(ip: IpAddr, info: &load_conf::DnsRecord) -> Result<(), ()> {
+    #[derive(Debug, serde::Serialize)]
+    struct ApiBody<'a> {
+        #[serde(rename = "type")]
+        record_type: &'a String,
+        name: &'a String,
+        ttl: u32,
+        proxied: bool,
+        content: String,
+    }
     let json_body = ApiBody {
-        record_type: info.record_type.clone(),
-        name: info.name.clone(),
+        record_type: &info.record_type,
+        name: &info.name,
         ttl: info.ttl,
         proxied: info.proxied,
         content: ip.to_string(),
     };
 
+    // let a = &info.zone_id;
     match CLIENT
         .put(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/dns_records/{}",
             info.zone_id, info.dns_id
         ))
-        .bearer_auth(info.api_token.clone())
+        .bearer_auth(&info.api_token)
         .json(&json_body)
         .header("Content-Type", "application/json")
         .send()
@@ -148,7 +148,7 @@ async fn ask_api(ip: IpAddr, info: &load_conf::DnsRecord) -> Result<(), ()> {
     Ok(())
 }
 
-pub async fn update_ip(ip_version: u8, config_json: Arc<Vec<&load_conf::DnsRecord>>) {
+pub async fn update_ip(ip_version: u8, config_json: &Vec<&load_conf::DnsRecord>) {
     if config_json.is_empty() {
         debug!("没有需要更新的IPv{ip_version}记录");
         return;

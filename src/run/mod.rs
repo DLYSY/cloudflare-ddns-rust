@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use log::{debug, error, info};
-use std::sync::{Arc, LazyLock};
+use std::sync::LazyLock;
 use tokio::sync::watch::{self, Receiver, Sender};
 use tokio::time::{Duration, sleep};
 
@@ -15,27 +15,23 @@ fn system_signal_handler() {
     debug!("退出中...");
     LOOP_SIGNAL.0.send("stop").unwrap();
 }
+
 pub async fn run(run_type: &str) -> Result<(), String> {
-    
     let config_json = load_conf::init_conf()?;
 
-    let ipv4_config: Arc<Vec<&load_conf::DnsRecord>> = Arc::new(
-        config_json
-            .iter()
-            .filter(|&x| x.record_type == Arc::new("A".to_string()))
-            .collect(),
-    );
-    let ipv6_config: Arc<Vec<&load_conf::DnsRecord>> = Arc::new(
-        config_json
-            .iter()
-            .filter(|&x| x.record_type == Arc::new("AAAA".to_string()))
-            .collect(),
-    );
+    let ipv4_config: Vec<&load_conf::DnsRecord> = config_json
+        .iter()
+        .filter(|&x| x.record_type == "A")
+        .collect();
+    let ipv6_config: Vec<&load_conf::DnsRecord> = config_json
+        .iter()
+        .filter(|&x| x.record_type == "AAAA")
+        .collect();
 
     let run_once = || async {
         tokio::join!(
-            update_ip::update_ip(4, ipv4_config.clone()),
-            update_ip::update_ip(6, ipv6_config.clone())
+            update_ip::update_ip(4, &ipv4_config),
+            update_ip::update_ip(6, &ipv6_config)
         );
         info!("本次更新完成");
     };

@@ -1,9 +1,9 @@
 use clap::Parser;
 
-mod run;
-mod obj;
 mod install;
+mod obj;
 mod parse_args;
+mod run;
 mod uninstall;
 
 #[tokio::main]
@@ -41,7 +41,7 @@ async fn main() -> Result<(), String> {
             parse_args::UninstallComponents::Schedule => uninstall::schedule().await?,
             #[cfg(unix)]
             parse_args::UninstallComponents::Cron => uninstall::cron()?,
-        }
+        },
     }
     Ok(())
 }

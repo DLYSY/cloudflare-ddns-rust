@@ -1,17 +1,23 @@
-use log::{debug, error};
-use std::{fs, io, sync::Arc};
 use crate::obj::DATA_DIR;
+use log::{debug, error};
+use std::{fs, io};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct DnsRecord {
-    pub api_token: Arc<String>,
+    pub api_token: String,
     pub zone_id: String,
     pub dns_id: String,
     #[serde(rename = "type")]
-    pub record_type: Arc<String>,
-    pub name: Arc<String>,
+    pub record_type: String,
+    pub name: String,
     pub ttl: u32,
     pub proxied: bool,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct Config {
+    timer_secs: u64,
+    dns_records: DnsRecord,
 }
 
 pub fn init_conf() -> Result<Vec<DnsRecord>, String> {

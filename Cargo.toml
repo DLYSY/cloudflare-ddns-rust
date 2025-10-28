@@ -14,7 +14,7 @@ futures = "*"
 tokio = { version = "1", features = ["full"] }
 clap = { version = "*", features = ["derive"] }
 ctrlc = { version = "*", features = ["termination"] }
-serde = { version = "*", features = ["derive", "rc"] }
+serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 flexi_logger = { version = "*", features = ["async", "compress", "colors"] }
 log = "*"
