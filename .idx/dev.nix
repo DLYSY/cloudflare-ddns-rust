@@ -16,6 +16,7 @@
   idx = {
     # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
+      "ms-ceintl.vscode-language-pack-zh-hans"
       "rust-lang.rust-analyzer"
       "tamasfe.even-better-toml"
       "serayuzgur.crates"
