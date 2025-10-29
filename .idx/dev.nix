@@ -23,7 +23,7 @@
     ];
     workspace = {
       onCreate = {
-        rustup default stable && rustup target add x86_64-unknown-linux-musl";
+        "rustup default stable && rustup target add x86_64-unknown-linux-musl";
         default.openFiles = ["src/main.rs"];
       };
     };
