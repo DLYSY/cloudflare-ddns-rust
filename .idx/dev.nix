@@ -1,5 +1,3 @@
-# To learn more about how to use Nix to configure your environment
-# see: https://developers.google.com/idx/guides/customize-idx-env
 { pkgs, ... }: {
   # Which nixpkgs channel to use.
   channel = "unstable"; # or "unstable"
@@ -10,6 +8,9 @@
     pkgs.rustfmt
     pkgs.stdenv.cc
     pkgs.rustup
+    pkgs.musl
+    pkgs.fish
+    pkgs.fastfetch
   ];
   # Sets environment variables in the workspace
   env = {
@@ -25,7 +26,8 @@
     ];
     workspace = {
       onCreate = {
-        # Open editors for the following files by default, if they exist:
+        rust-init = "rustup default stable"
+        musl-target = "rustup target add x86_64-unknown-linux-musl"
         default.openFiles = ["src/main.rs"];
       };
     };
