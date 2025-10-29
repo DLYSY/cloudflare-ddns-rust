@@ -5,7 +5,7 @@
   packages = [
     pkgs.rustup
     pkgs.gcc
-    pkgs.musl
+    pkgs.musl.dev
     pkgs.fish
     pkgs.fastfetch
   ];
@@ -16,7 +16,8 @@
   idx = {
     # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
-      "ms-ceintl.vscode-language-pack-zh-hans"
+      "ms-azuretools.vscode-docker"
+      "yzhang.markdown-all-in-one"
       "rust-lang.rust-analyzer"
       "tamasfe.even-better-toml"
       "serayuzgur.crates"
