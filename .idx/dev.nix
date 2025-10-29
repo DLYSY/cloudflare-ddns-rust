@@ -3,11 +3,6 @@
   channel = "unstable"; # or "unstable"
   # Use https://search.nixos.org/packages to find packages
   packages = [
-    pkgs.cargo
-    pkgs.rustc
-    pkgs.rustfmt
-    pkgs.stdenv.cc
-    pkgs.rustup
     pkgs.musl
     pkgs.fish
     pkgs.fastfetch
@@ -26,8 +21,7 @@
     ];
     workspace = {
       onCreate = {
-        rust-init = "rustup default stable";
-        musl-target = "rustup target add x86_64-unknown-linux-musl";
+        rust-init = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh && rustup target add x86_64-unknown-linux-musl";
         default.openFiles = ["src/main.rs"];
       };
     };
