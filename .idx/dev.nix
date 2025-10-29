@@ -26,8 +26,8 @@
     ];
     workspace = {
       onCreate = {
-        rust-init = "rustup default stable"
-        musl-target = "rustup target add x86_64-unknown-linux-musl"
+        rust-init = "rustup default stable";
+        musl-target = "rustup target add x86_64-unknown-linux-musl";
         default.openFiles = ["src/main.rs"];
       };
     };
