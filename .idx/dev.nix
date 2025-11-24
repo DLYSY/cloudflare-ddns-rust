@@ -25,7 +25,7 @@
     ];
     workspace = {
       onCreate = {
-        rust-init = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --quiet --default-toolchain stable --target x86_64-unknown-linux-musl";
+        rust-init = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --quiet -y --default-toolchain stable --target x86_64-unknown-linux-musl";
         default.openFiles = [ "src/main.rs" ];
       };
       onStart = {
