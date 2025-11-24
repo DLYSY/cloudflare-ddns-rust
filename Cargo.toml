@@ -11,13 +11,14 @@ reqwest = { version = "*", default-features = false, features = [
     "http2",
 ] } # openssl在musl编译会出错，所以关闭默认选项改用rustls
 futures = "*"
-tokio = { version = "1", features = ["rt-multi-thread", "fs", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "fs", "macros","parking_lot"] }
 clap = { version = "*", features = ["derive"] }
 ctrlc = { version = "*", features = ["termination"] }
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 flexi_logger = { version = "*", features = ["async", "compress", "colors"] }
 log = "*"
+parking_lot = "*"
 
 [target.'cfg(windows)'.dependencies]
 windows-services = "*"

@@ -1,10 +1,11 @@
 use super::load_conf;
 use futures::future;
 use log::{debug, warn};
+use parking_lot::Mutex;
 use reqwest::{self, Client, ClientBuilder, Version, retry, tls};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
-use std::sync::LazyLock;
+use std::sync::{LazyLock, OnceLock};
 use std::time::Duration;
 
 static CLIENT: LazyLock<Client> = LazyLock::new(|| {
@@ -23,8 +24,8 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .unwrap()
 });
 
-static mut IPV4ADDR: Option<Ipv4Addr> = None;
-static mut IPV6ADDR: Option<Ipv6Addr> = None;
+static IPV4ADDR: OnceLock<Mutex<Ipv4Addr>> = OnceLock::new();
+static IPV6ADDR: OnceLock<Mutex<Ipv6Addr>> = OnceLock::new();
 
 async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
     let ip_response = match CLIENT
@@ -163,28 +164,29 @@ pub async fn update_ip(ip_version: u8, config_json: &Vec<&load_conf::DnsRecord>)
     };
 
     // 检查IP是否变化
-    unsafe {
-        match ip {
-            IpAddr::V4(ipv4) => {
-                if let Some(old_ip) = IPV4ADDR {
-                    if old_ip == ip {
-                        debug!("IPv4地址未改变，跳过更新");
-                        return;
-                    }
-                }
-                IPV4ADDR = Some(ipv4);
+    match ip {
+        IpAddr::V4(ipv4) => {
+            let mut ipv4_inner = IPV4ADDR
+                .get_or_init(|| Mutex::new(Ipv4Addr::new(127, 0, 0, 1)))
+                .lock();
+            if ipv4 == *ipv4_inner {
+                debug!("IPv4地址未改变，跳过更新");
+                return;
+            } else {
+                *ipv4_inner = ipv4;
             }
-            IpAddr::V6(ipv6) => {
-                if let Some(old_ip) = IPV6ADDR {
-                    if old_ip == ip {
-                        debug!("IPv6地址未改变，跳过更新");
-                        return;
-                    }
-                }
-                IPV6ADDR = Some(ipv6);
+        }
+        IpAddr::V6(ipv6) => {
+            let mut ipv6_inner = IPV6ADDR
+                .get_or_init(|| Mutex::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)))
+                .lock();
+            if ipv6 == *ipv6_inner{
+                debug!("IPv6地址未改变，跳过更新");
+                return;
+            }else{
+                *ipv6_inner = ipv6;
             }
-        };
+        }
     }
-
     future::join_all(config_json.iter().map(|&x| ask_api(ip, x))).await;
 }
