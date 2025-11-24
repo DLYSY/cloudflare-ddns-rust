@@ -3,7 +3,7 @@
   channel = "unstable"; # or "unstable"
   # Use https://search.nixos.org/packages to find packages
   packages = [
-    pkgs.rustup
+    # pkgs.rustup
     pkgs.gcc
     pkgs.musl.dev
     pkgs.fish
@@ -25,11 +25,14 @@
     ];
     workspace = {
       onCreate = {
-        rust-init = "rustup default stable && rustup target add x86_64-unknown-linux-musl";
-        default.openFiles = ["src/main.rs"];
+        rust-init = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --quiet --default-toolchain stable --target x86_64-unknown-linux-musl";
+        default.openFiles = [ "src/main.rs" ];
+      };
+      onStart = {
+        rust-update = "rustup update";
       };
     };
     # Enable previews and customize configuration
-    previews = {};
+    previews = { };
   };
 }
