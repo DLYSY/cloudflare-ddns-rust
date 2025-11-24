@@ -11,7 +11,7 @@ reqwest = { version = "*", default-features = false, features = [
     "http2",
 ] } # openssl在musl编译会出错，所以关闭默认选项改用rustls
 futures = "*"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "fs", "macros"] }
 clap = { version = "*", features = ["derive"] }
 ctrlc = { version = "*", features = ["termination"] }
 serde = { version = "*", features = ["derive"] }
