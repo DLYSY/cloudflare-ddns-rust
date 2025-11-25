@@ -1,4 +1,5 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand,ValueEnum};
+use flexi_logger::LogSpecification;
 
 #[derive(Parser)]
 #[command(name = "Cloudflare DDNS")]
@@ -6,6 +7,28 @@ use clap::{Parser, Subcommand};
 pub struct CliArgs {
     #[command(subcommand)]
     pub command: Commands,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum LogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+    Off
+}
+impl LogLevel {
+    pub fn to_loglevel (&self) -> LogSpecification {
+        match self {
+            LogLevel::Trace => LogSpecification::trace(),
+            LogLevel::Debug =>LogSpecification::debug(),
+            LogLevel::Info => LogSpecification::info(),
+            LogLevel::Warn => LogSpecification::warn(),
+            LogLevel::Error=> LogSpecification::error(),
+            LogLevel::Off=> LogSpecification::off()
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -20,9 +43,9 @@ pub enum Commands {
         #[arg(long)]
         loops: bool,
 
-        /// Enable debug mode
+        /// Log level, info is default
         #[arg(long)]
-        debug: bool,
+        log: Option<LogLevel>,
     },
     /// Install components
     Install {

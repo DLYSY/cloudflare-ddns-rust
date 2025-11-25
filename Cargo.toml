@@ -4,14 +4,19 @@ version = "0.2.0"
 edition = "2024"
 
 [dependencies]
+futures = "*"
 reqwest = { version = "*", default-features = false, features = [
     "json",
     "gzip",
-    "rustls-tls",
     "http2",
-] } # openssl在musl编译会出错，所以关闭默认选项改用rustls
-futures = "*"
-tokio = { version = "1", features = ["rt-multi-thread", "fs", "macros","parking_lot"] }
+    "rustls-tls"
+] }
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "fs",
+    "macros",
+    "parking_lot",
+] }
 clap = { version = "*", features = ["derive"] }
 ctrlc = { version = "*", features = ["termination"] }
 serde = { version = "*", features = ["derive"] }
@@ -20,13 +25,15 @@ flexi_logger = { version = "*", features = ["async", "compress", "colors"] }
 log = "*"
 parking_lot = "*"
 
+[target.'cfg(target_env = "musl")'.dependencies]
+mimalloc = { version = "0.1", features = ["v3"] }
+
 [target.'cfg(windows)'.dependencies]
 windows-services = "*"
 
-
 [profile.release]
 strip = true             # 自动从二进制文件去除符号信息.
-opt-level = "z"          #  二进制文件大小优化
+opt-level = "s"          #  二进制文件大小优化
 codegen-units = 1
 lto = "fat"              # 完全 LTO（编译慢但性能更好）
 panic = "abort"
@@ -37,4 +44,4 @@ incremental = false      # 关闭增量编译，减少内存占用
 
 # 为所有依赖也强制设置 opt-level
 [profile.release.package."*"]
-opt-level = "z"
+opt-level = "s"
