@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 use reqwest::{self, Client, ClientBuilder, Version, retry, tls};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
-use std::sync::{LazyLock, OnceLock};
+use std::sync::LazyLock;
 use std::time::Duration;
 
 static CLIENT: LazyLock<Client> = LazyLock::new(|| {
@@ -24,8 +24,10 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .unwrap()
 });
 
-static IPV4ADDR: OnceLock<Mutex<Ipv4Addr>> = OnceLock::new();
-static IPV6ADDR: OnceLock<Mutex<Ipv6Addr>> = OnceLock::new();
+static IPV4ADDR: LazyLock<Mutex<Ipv4Addr>> =
+    LazyLock::new(|| Mutex::new(Ipv4Addr::new(127, 0, 0, 1)));
+static IPV6ADDR: LazyLock<Mutex<Ipv6Addr>> =
+    LazyLock::new(|| Mutex::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)));
 
 async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
     let ip_response = match CLIENT
@@ -99,7 +101,6 @@ async fn ask_api(ip: IpAddr, info: &load_conf::DnsRecord) -> Result<(), ()> {
         content: ip.to_string(),
     };
 
-    // let a = &info.zone_id;
     match CLIENT
         .put(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/dns_records/{}",
@@ -166,9 +167,7 @@ pub async fn update_ip(ip_version: u8, config_json: &Vec<&load_conf::DnsRecord>)
     // 检查IP是否变化
     match ip {
         IpAddr::V4(ipv4) => {
-            let mut ipv4_inner = IPV4ADDR
-                .get_or_init(|| Mutex::new(Ipv4Addr::new(127, 0, 0, 1)))
-                .lock();
+            let mut ipv4_inner = IPV4ADDR.lock();
             if ipv4 == *ipv4_inner {
                 debug!("IPv4地址未改变，跳过更新");
                 return;
@@ -177,13 +176,11 @@ pub async fn update_ip(ip_version: u8, config_json: &Vec<&load_conf::DnsRecord>)
             }
         }
         IpAddr::V6(ipv6) => {
-            let mut ipv6_inner = IPV6ADDR
-                .get_or_init(|| Mutex::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)))
-                .lock();
-            if ipv6 == *ipv6_inner{
+            let mut ipv6_inner = IPV6ADDR.lock();
+            if ipv6 == *ipv6_inner {
                 debug!("IPv6地址未改变，跳过更新");
                 return;
-            }else{
+            } else {
                 *ipv6_inner = ipv6;
             }
         }
