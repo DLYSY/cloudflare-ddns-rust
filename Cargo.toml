@@ -25,21 +25,17 @@ log = "*"
 parking_lot = "*"
 
 [target.'cfg(target_env = "musl")'.dependencies]
-reqwest = { version = "*", features = [
-    "rustls-tls",
-] }
+reqwest = { version = "*", default-features = false, features = ["rustls-tls"] }
 mimalloc = { version = "0.1", features = ["v3"] }
 
 [target.'cfg(not(target_env = "musl"))'.dependencies]
-reqwest = { version = "*", features = [
+reqwest = { version = "*", default-features = false, features = [
     "native-tls",
     "native-tls-alpn",
 ] }
 
 [target.'cfg(windows)'.dependencies]
 windows-services = "*"
-
-
 
 
 [profile.release]
