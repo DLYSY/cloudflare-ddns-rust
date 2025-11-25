@@ -12,9 +12,9 @@ async fn main() -> Result<(), String> {
         parse_args::Commands::Run {
             once: _,
             loops,
-            debug,
+            log,
         } => {
-            let _logger = obj::init_log(debug)?;
+            let _logger = obj::init_log(log)?;
             if loops {
                 #[cfg(windows)]
                 match run::run_service_windows() {
