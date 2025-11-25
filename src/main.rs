@@ -1,3 +1,5 @@
+// #[allow(unused_imports)]
+// use auto_allocator;
 use clap::Parser;
 
 mod install;
@@ -5,6 +7,12 @@ mod obj;
 mod parse_args;
 mod run;
 mod uninstall;
+
+#[cfg(target_env = "musl")]
+use mimalloc::MiMalloc;
+#[cfg(target_env = "musl")]
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
