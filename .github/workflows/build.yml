@@ -19,7 +19,7 @@ jobs:
     - name: add_target
       run: rustup target add x86_64-unknown-linux-musl
 
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Build
       run: cargo build --target x86_64-unknown-linux-musl --release
@@ -59,7 +59,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Build
         run: cargo build --release
