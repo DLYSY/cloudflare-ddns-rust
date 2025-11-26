@@ -1,7 +1,3 @@
-// #[allow(unused_imports)]
-// use auto_allocator;
-use clap::Parser;
-
 mod install;
 mod obj;
 mod parse_args;
@@ -9,21 +5,20 @@ mod run;
 mod uninstall;
 
 #[cfg(target_env = "musl")]
-use mimalloc::MiMalloc;
-#[cfg(target_env = "musl")]
 #[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
-    match parse_args::CliArgs::parse().command {
+    match &*obj::ARGS {
         parse_args::Commands::Run {
             once: _,
             loops,
             log,
+            datadir: _,
         } => {
-            let _logger = obj::init_log(log)?;
-            if loops {
+            let _logger = obj::init_log(*log)?;
+            if *loops {
                 #[cfg(windows)]
                 match run::run_service_windows() {
                     Ok(_) => return Ok(()),

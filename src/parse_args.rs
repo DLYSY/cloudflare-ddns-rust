@@ -46,6 +46,10 @@ pub enum Commands {
         /// Log level, info is default
         #[arg(long)]
         log: Option<LogLevel>,
+
+        /// data path, default is <current execute>/data
+        #[arg(long)]
+        datadir: Option<std::path::PathBuf>
     },
     /// Install components
     Install {

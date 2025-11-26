@@ -1,3 +1,4 @@
+use clap::Parser;
 use flexi_logger::{
     Age, Cleanup, Criterion, Duplicate, FileSpec, Logger, LoggerHandle, Naming, WriteMode,
     colored_detailed_format, detailed_format,
@@ -6,19 +7,34 @@ use log::debug;
 use std::env::{current_dir, current_exe};
 use std::sync::LazyLock;
 
-use crate::parse_args::LogLevel;
+use crate::parse_args::{self, LogLevel};
+
+pub static ARGS: LazyLock<parse_args::Commands> =
+    LazyLock::new(|| parse_args::CliArgs::parse().command);
 
 pub static DATA_DIR: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
-    let root_dir = if cfg!(debug_assertions) {
-        current_dir().expect("无法读取当前工作目录")
+    if let parse_args::Commands::Run {
+        once: _,
+        loops: _,
+        log: _,
+        datadir,
+    } = &*ARGS
+    {
+        datadir.clone().unwrap_or_else(|| {
+            if cfg!(debug_assertions) {
+                current_dir().expect("无法读取当前工作目录")
+            } else {
+                current_exe()
+                    .expect("无法读取二进制文件路径")
+                    .parent()
+                    .expect("无法读取二进制文件所在目录")
+                    .to_path_buf()
+            }
+            .join("data")
+        })
     } else {
-        current_exe()
-            .expect("无法读取二进制文件路径")
-            .parent()
-            .expect("无法读取二进制文件所在目录")
-            .to_path_buf()
-    };
-    root_dir.join("data")
+        unreachable!()
+    }
 });
 
 pub fn init_log(log_level: Option<LogLevel>) -> Result<LoggerHandle, String> {
