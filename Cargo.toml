@@ -10,7 +10,6 @@ reqwest = { version = "*", default-features = false, features = [
     "gzip",
     "http2",
     "rustls-tls",
-    "hickory-dns",
 ] }
 tokio = { version = "1", features = [
     "rt-multi-thread",

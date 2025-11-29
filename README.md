@@ -368,6 +368,13 @@ cargo build --release --target x86_64-unknown-linux-musl
 
 ## 路线图
 
+### 已知问题
+
+- 在PVE 9.1 无法通过 OCI 使用，但这疑似是 PVE 问题（busybox 目前在 PVE OCI 下网络也不正常），鉴于目前 PVE 的 OCI 功能尚不成熟。暂不计划进行针对性修复 ~~（老夫就是个调包侠，包本身有兼容性问题我也没办法）~~，目前解决办法：
+    1. 将二进制文件打包进一般发行版镜像中（quay 上的镜像为 scratch）
+    2. 直接在 PVE 中运行
+    3. 使用传统的 LXC 容器或者 VM 运行
+
 ### TODO
 
 - 优化配置文件，支持调整更新间隔等参数。
