@@ -19,7 +19,7 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .pool_idle_timeout(Duration::from_secs(180))
         .connect_timeout(time_out_secs)
         .read_timeout(time_out_secs)
-        .min_tls_version(tls::Version::TLS_1_2)
+        .min_tls_version(tls::Version::TLS_1_3)
         .build()
         .unwrap()
 });

@@ -9,7 +9,8 @@ reqwest = { version = "*", default-features = false, features = [
     "json",
     "gzip",
     "http2",
-    "rustls-tls"
+    "rustls-tls",
+    "hickory-dns",
 ] }
 tokio = { version = "1", features = [
     "rt-multi-thread",
@@ -33,7 +34,7 @@ windows-services = "*"
 
 [profile.release]
 strip = true             # 自动从二进制文件去除符号信息.
-opt-level = "s"          #  二进制文件大小优化
+opt-level = "s"
 codegen-units = 1
 lto = "fat"              # 完全 LTO（编译慢但性能更好）
 panic = "abort"

@@ -302,7 +302,7 @@ ddns_rust --help
 
 ### Windows
 
-由于使用了 Windows 服务相关 Win32API，`cargo target`请使用`*-pc-windows-msvc`，最新版本`msvc`是建议选项（当前为 Visual Studio 2022），使用其他 target（~~`gnu`~~、`gnullvm`）是不建议也不会提供支持的。
+由于使用了 Windows 服务相关 Win32API，`cargo target`请使用`*-pc-windows-msvc`，最新版本`msvc`是建议选项（当前为 Visual Studio 2026），使用其他 target（~~`gnu`~~、`gnullvm`）是不建议也不会提供支持的。
 
 *在当前（2025年10月）的 Arch Linux 上使用 `mingw-w64-gcc` 在 `x86_64-pc-windows-gnu` 下进行跨平台编译得到的二进制文件功能完全正常（包括 Service 相关 API 也可以正常运行），但这依然不是推荐的使用方式。*
 
@@ -372,7 +372,7 @@ cargo build --release --target x86_64-unknown-linux-musl
 
 - 优化配置文件，支持调整更新间隔等参数。
 - OpenWrt 支持（低优先级，现阶段建议使用[安装为 cron](#要将其安装为cron任务请运行)）
-- OpenRC 支持：极低优先级（甚至可能会降级为 [NOT TODO](#not-todo)），Alpine 和 Gentoo 实在没啥人用作，如果你确实需要同样建议[安装为 cron](#要将其安装为cron任务请运行)。
+- OpenRC 支持（极低优先级，甚至可能会降级为 [NOT TODO](#not-todo)），Alpine 和 Gentoo 实在没啥人用作服务器，如果你确实需要同样建议[安装为 cron](#要将其安装为cron任务请运行)。
 
 ### NOT TODO
 
