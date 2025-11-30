@@ -21,7 +21,7 @@ Options:
 
 要更新DNS，请使用 
 
-```
+```bash
 ddns_rust run
 ```
 

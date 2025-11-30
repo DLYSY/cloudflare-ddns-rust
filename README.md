@@ -302,7 +302,7 @@ ddns_rust --help
 
 ### Windows
 
-由于使用了 Windows 服务相关 Win32API，`cargo target`请使用`*-pc-windows-msvc`，最新版本`msvc`是建议选项（当前为 Visual Studio 2026），使用其他 target（~~`gnu`~~、`gnullvm`）是不建议也不会提供支持的。
+由于使用了 Windows 服务相关 Win32API，`rustup target` 请使用`*-pc-windows-msvc`，最新版本 `msvc` 是建议选项（当前为 Visual Studio 2026），使用其他 target（~~`gnu`~~、`gnullvm`）不保证能用。
 
 *在当前（2025年10月）的 Arch Linux 上使用 `mingw-w64-gcc` 在 `x86_64-pc-windows-gnu` 下进行跨平台编译得到的二进制文件功能完全正常（包括 Service 相关 API 也可以正常运行），但这依然不是推荐的使用方式。*
 
@@ -385,11 +385,11 @@ cargo build --release --target x86_64-unknown-linux-musl
 
 - **支持 MX 等其他记录类型**：使用太少，很多记录类型比如 SSHFP、NAPTR 都不太明白具体用途。可能会用得上的就是 MX 记录，MX 记录本身类似于 CNAME 记录需要指向一个域名，所以直接在对应的域名上使用 DDNS 即可。
 
-- **支持Mac**：项目二进制文件可以进行单独的使用，理论上可以配合 cron 使用，但鉴于本人无任何 Mac 设备，故不计划对 Mac 进行测试。
+- **支持Mac**：项目二进制文件可以进行单独的使用，理论上可以配合 cron 使用，但我无任何 Mac 设备，故不计划对 Mac 进行测试。
 
 - **支持各种 BSD、SysV、Termux 等其他系统**：这些系统从二进制文件到 init 都十分混乱，理论上来说只要 `Rust` 支持这些系统就可以进行编译，但我不会进行测试。如果您确实需要使用，建议尝试[安装为 cron](#要将其安装为cron任务请运行)。
   
-- **支持非 x86_64 架构设备（包括x86_32也不会支持）**：本人无其他架构服务器设备，无法进行测试，但如果你具有相关条件进行测试并发现问题，欢迎提交 PR。
+- **支持非 x86_64 架构设备（包括x86_32也不会支持）**：我没有其他架构服务器设备，无法进行测试，但如果你具有相关条件进行测试并发现问题，欢迎提交 PR。
   
 - **支持 Windows8.1 及更低版本 Windows**：系统过于老旧，Rust 工具链本身支持有限。
 
