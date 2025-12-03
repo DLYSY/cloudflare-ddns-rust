@@ -1,4 +1,6 @@
 name: Build
+permissions:
+  contents: read
 
 on:
   push:
@@ -13,25 +15,7 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     steps:
-    - name: install musl lib
-      run: sudo apt install musl-tools -y
-
-    - name: add_target
-      run: rustup target add x86_64-unknown-linux-musl
-
     - uses: actions/checkout@v6
-
-    - name: Build
-      run: cargo build --target x86_64-unknown-linux-musl --release
-
-    - name: Archive Bin
-      uses: actions/upload-artifact@v5
-      with:
-        name: ddns_rust-linux-x86_64
-        path: target/x86_64-unknown-linux-musl/release/ddns_rust
-
-    - name: Build Docker Image
-      run: docker build -f Dockerfile.linux -t quay.io/dlysy/cloudflareddns:linux .
 
     - name: quay.io login
       uses: docker/login-action@v3
@@ -40,9 +24,20 @@ jobs:
         username: ${{ secrets.QUAY_IO_USERNAME }}
         password: ${{ secrets.QUAY_IO_PASSWORD }}
 
-    - name: Push to quay.io
-      run: docker push quay.io/dlysy/cloudflareddns:linux
+    - name: Build
+      run: |
+        sudo apt install musl-tools -y
+        rustup target add x86_64-unknown-linux-musl
+        cargo build --target x86_64-unknown-linux-musl --release
+        docker build -f Dockerfile.linux -t quay.io/dlysy/cloudflareddns:linux .
+        docker push quay.io/dlysy/cloudflareddns:linux
 
+    - name: Archive Bin
+      uses: actions/upload-artifact@v5
+      with:
+        name: ddns_rust-linux-x86_64
+        path: target/x86_64-unknown-linux-musl/release/ddns_rust
+    
     - name: Build Skylake
       env: 
         RUSTFLAGS: -C target-cpu=skylake
@@ -61,18 +56,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build
-        run: cargo build --release
-
-      - name: Archive production artifacts
-        uses: actions/upload-artifact@v5
-        with:
-          name: ddns_rust-windows-x86_64
-          path: target/release/ddns_rust.exe
-
-      - name: Build Docker Image
-        run: docker build -f Dockerfile.windows -t quay.io/dlysy/cloudflareddns:windows .
-
       - name: quay.io login
         uses: docker/login-action@v3
         with:
@@ -80,5 +63,14 @@ jobs:
           username: ${{ secrets.QUAY_IO_USERNAME }}
           password: ${{ secrets.QUAY_IO_PASSWORD }}
 
-      - name: Push to quay.io
-        run: docker push quay.io/dlysy/cloudflareddns:windows
+      - name: Build
+        run: |
+          cargo build --release
+          docker build -f Dockerfile.windows -t quay.io/dlysy/cloudflareddns:windows .
+          docker push quay.io/dlysy/cloudflareddns:windows
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: ddns_rust-windows-x86_64
+          path: target/release/ddns_rust.exe

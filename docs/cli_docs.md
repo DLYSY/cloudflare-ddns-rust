@@ -1,6 +1,10 @@
 # 命令行参考
 
-运行 `ddns_rust --help` 可以获取帮助：
+运行 
+```bash
+ddns_rust --help
+``` 
+可以获取帮助：
 
 ```bash
 Usage: ddns_rust <COMMAND>
@@ -58,6 +62,24 @@ ddns_rust run --log debug
 
 ## 安装
 
-可以将二进制文件安装为服务或者定时任务
+可以将二进制文件安装为服务或者定时任务。
+
+### 安装为服务
+
+以 root（在 Windows 上使用管理员权限）运行：
+
+```bash
+ddns_rust install service
+```
+
+- 如果您正在使用Windows，该命令会创建名为`Cloudflare DDNS`的服务，启动方式为“自动（延迟启动）”。
+
+- 如果您正在使用 systemd 作为 init 的 Linux 发行版，该命令会在`/etc/systemd/system/`下创建`cloudflareddns.service`，您需要使用如下命令来启用它：
+  
+   ```bash
+   systemctl enable --now cloudflareddns.service
+   ```
+
+?> 服务的循环周期为1分钟（未来会支持自定义）
 
 ## 卸载
