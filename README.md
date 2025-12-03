@@ -1,5 +1,10 @@
 # cloudflare-ddns-rust
 
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/DLYSY/cloudflare-ddns-rust/build.yml)
+![GitHub deployments](https://img.shields.io/github/deployments/DLYSY/cloudflare-ddns-rust/github-pages?label=doc&color=%23FFD700&link=https%3A%2F%2Fdlysy.github.io%2Fcloudflare-ddns-rust%2F)
+
+
+
 这是一个使用rust编写的本人自用 Cloudflare DDNS 脚本，使用了 Rust 高效异步方法构建，速度极快。
 
 ## 特点
