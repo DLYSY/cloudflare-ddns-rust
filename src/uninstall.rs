@@ -16,7 +16,7 @@ pub fn service() -> Result<(), String> {
     Ok(())
 }
 
-pub async fn schedule() -> Result<(), String> {
+pub fn schedule() -> Result<(), String> {
     if cfg!(windows) {
         process::Command::new("schtasks")
             .args(["/delete", "/tn", "CloudflareDDNS", "/f"])
@@ -26,11 +26,9 @@ pub async fn schedule() -> Result<(), String> {
             .then_some(())
             .ok_or("删除计划任务失败，请检查是否有管理员权限".to_string())?;
     } else if cfg!(unix) {
-        tokio::try_join!(
-            tokio::fs::remove_file("/etc/systemd/system/cloudflareddns.service"),
-            tokio::fs::remove_file("/etc/systemd/system/cloudflareddns.timer")
-        )
-        .map_err(|e| format!("删除systemd timer失败，请检查是否有管理员权限，回溯错误：{e}"))?;
+        std::fs::remove_file("/etc/systemd/system/cloudflareddns.service").and(
+            std::fs::remove_file("/etc/systemd/system/cloudflareddns.timer"),
+        ).map_err(|e| format!("删除systemd timer失败，请检查是否有管理员权限，回溯错误：{e}"))?;
     }
     Ok(())
 }

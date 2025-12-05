@@ -58,7 +58,7 @@ pub fn service() -> Result<(), String> {
     Ok(())
 }
 
-pub async fn schedule() -> Result<(), String> {
+pub fn schedule() -> Result<(), String> {
     if cfg!(windows) {
         process::Command::new("schtasks")
             .args([
@@ -104,11 +104,12 @@ pub async fn schedule() -> Result<(), String> {
             "WantedBy=timers.target"
         );
 
-        tokio::try_join!(
-            tokio::fs::write("/etc/systemd/system/cloudflareddns.service", service_file,),
-            tokio::fs::write("/etc/systemd/system/cloudflareddns.timer", timer_file,)
-        )
-        .map_err(|e| format!("创建systemd timer失败，请检查是否有管理员权限，回溯错误：{e}"))?;
+        std::fs::write("/etc/systemd/system/cloudflareddns.service", service_file)
+            .and(std::fs::write(
+                "/etc/systemd/system/cloudflareddns.timer",
+                timer_file,
+            ))
+            .map_err(|e| format!("创建systemd timer失败，请检查是否有管理员权限，回溯错误：{e}"))?;
     }
     Ok(())
 }

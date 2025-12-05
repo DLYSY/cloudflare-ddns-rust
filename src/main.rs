@@ -8,8 +8,7 @@ mod uninstall;
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-#[tokio::main]
-async fn main() -> Result<(), String> {
+fn main() -> Result<(), String> {
     match &*obj::ARGS {
         parse_args::Commands::Run {
             once: _,
@@ -28,20 +27,20 @@ async fn main() -> Result<(), String> {
                         }
                     }
                 }
-                run::run("loop").await?;
+                run::run("loop")?;
             } else {
-                run::run("once").await?;
+                run::run("once")?;
             }
         }
         parse_args::Commands::Install { component } => match component {
             parse_args::InstallComponents::Service => install::service()?,
-            parse_args::InstallComponents::Schedule => install::schedule().await?,
+            parse_args::InstallComponents::Schedule => install::schedule()?,
             #[cfg(unix)]
             parse_args::InstallComponents::Cron => install::cron()?,
         },
         parse_args::Commands::Uninstall { component } => match component {
             parse_args::UninstallComponents::Service => uninstall::service()?,
-            parse_args::UninstallComponents::Schedule => uninstall::schedule().await?,
+            parse_args::UninstallComponents::Schedule => uninstall::schedule()?,
             #[cfg(unix)]
             parse_args::UninstallComponents::Cron => uninstall::cron()?,
         },

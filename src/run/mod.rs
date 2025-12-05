@@ -16,6 +16,7 @@ fn system_signal_handler() {
     LOOP_SIGNAL.0.send("stop").unwrap();
 }
 
+#[tokio::main]
 pub async fn run(run_type: &str) -> Result<(), String> {
     let config_json = load_conf::init_conf()?;
 
@@ -77,8 +78,7 @@ pub fn run_service_windows() -> Result<(), String> {
         .run(|_, command| match command {
             Command::Start => {
                 task = Some(std::thread::spawn(|| {
-                    let rt_run = tokio::runtime::Runtime::new().unwrap();
-                    match rt_run.block_on(run("loop")) {
+                    match run("loop") {
                         Ok(()) => (),
                         Err(_) => {
                             error!("检测到服务环境，强制退出进程...");
