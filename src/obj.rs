@@ -13,28 +13,28 @@ pub static ARGS: LazyLock<parse_args::Commands> =
     LazyLock::new(|| parse_args::CliArgs::parse().command);
 
 pub static DATA_DIR: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
-    if let parse_args::Commands::Run {
+    let parse_args::Commands::Run {
         once: _,
         loops: _,
         log: _,
         datadir,
     } = &*ARGS
-    {
-        datadir.clone().unwrap_or_else(|| {
-            if cfg!(debug_assertions) {
-                current_dir().expect("无法读取当前工作目录")
-            } else {
-                current_exe()
-                    .expect("无法读取二进制文件路径")
-                    .parent()
-                    .expect("无法读取二进制文件所在目录")
-                    .to_path_buf()
-            }
-            .join("data")
-        })
-    } else {
+    else {
         unreachable!()
-    }
+    };
+
+    datadir.clone().unwrap_or_else(|| {
+        if cfg!(debug_assertions) {
+            current_dir().expect("无法读取当前工作目录")
+        } else {
+            current_exe()
+                .expect("无法读取二进制文件路径")
+                .parent()
+                .expect("无法读取二进制文件所在目录")
+                .to_path_buf()
+        }
+        .join("data")
+    })
 });
 
 pub fn init_log(log_level: Option<LogLevel>) -> Result<LoggerHandle, String> {

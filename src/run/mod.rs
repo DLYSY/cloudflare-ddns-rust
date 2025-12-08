@@ -9,15 +9,27 @@ use windows_services::{Command, Service};
 mod load_conf;
 mod update_ip;
 
-static LOOP_SIGNAL: LazyLock<(Sender<&str>, Receiver<&str>)> = LazyLock::new(|| watch::channel(""));
+pub enum RunType {
+    Once,
+    Loops,
+}
+
+#[derive(PartialEq)]
+enum SignalType {
+    Run,
+    Stop,
+    Pause
+}
+
+static LOOP_SIGNAL: LazyLock<(Sender<SignalType>, Receiver<SignalType>)> = LazyLock::new(|| watch::channel(SignalType::Run));
 
 fn system_signal_handler() {
     debug!("退出中...");
-    LOOP_SIGNAL.0.send("stop").unwrap();
+    LOOP_SIGNAL.0.send(SignalType::Stop).unwrap();
 }
 
 #[tokio::main]
-pub async fn run(run_type: &str) -> Result<(), String> {
+pub async fn run(run_type: RunType) -> Result<(), &'static str> {
     let config_json = load_conf::init_conf()?;
 
     let ipv4_config: Vec<&load_conf::DnsRecord> = config_json
@@ -38,38 +50,38 @@ pub async fn run(run_type: &str) -> Result<(), String> {
     };
 
     match run_type {
-        "once" => {
+        RunType::Once => {
             run_once().await;
             return Ok(());
         }
-        "loop" => {
+        RunType::Loops => {
             let mut rx = LOOP_SIGNAL.1.clone();
             #[cfg(windows)]
             let mut rx_pause = LOOP_SIGNAL.1.clone();
 
             ctrlc::set_handler(system_signal_handler).unwrap();
 
+
             loop {
                 run_once().await;
 
                 tokio::select! {
-                    _ = rx.wait_for(|&signal| signal == "stop") => return Ok(()),
+                    _ = rx.wait_for(|signal| signal == &SignalType::Stop) => return Ok(()),
                     _ = sleep(Duration::from_secs(60))=>(),
                 }
 
                 #[cfg(windows)]
                 tokio::select! {
-                    _ = rx.wait_for(|&signal| signal == "stop") => return Ok(()),
-                    _ = rx_pause.wait_for(|&signal| signal != "pause")=>(),
+                    _ = rx.wait_for(|signal| signal == &SignalType::Stop) => return Ok(()),
+                    _ = rx_pause.wait_for(|signal| signal != &SignalType::Pause)=>(),
                 }
             }
         }
-        _ => unreachable!(),
     }
 }
 
 #[cfg(windows)]
-pub fn run_service_windows() -> Result<(), String> {
+pub fn run_service_windows() -> Result<(), &'static str> {
     let mut task: Option<std::thread::JoinHandle<()>> = None;
 
     Service::new()
@@ -77,30 +89,28 @@ pub fn run_service_windows() -> Result<(), String> {
         .can_pause()
         .run(|_, command| match command {
             Command::Start => {
-                task = Some(std::thread::spawn(|| {
-                    match run("loop") {
-                        Ok(()) => (),
-                        Err(_) => {
-                            error!("检测到服务环境，强制退出进程...");
-                            std::process::exit(1)
-                        }
+                task = Some(std::thread::spawn(|| match run(RunType::Loops) {
+                    Ok(()) => (),
+                    Err(_) => {
+                        error!("检测到服务环境，强制退出进程...");
+                        std::process::exit(1)
                     }
                 }));
             }
             Command::Stop => {
                 debug!("服务退出中...");
-                LOOP_SIGNAL.0.send("stop").unwrap();
+                LOOP_SIGNAL.0.send(SignalType::Stop).unwrap();
                 task.take().unwrap().join().unwrap();
             }
             Command::Pause => {
                 debug!("收到暂停信号");
-                LOOP_SIGNAL.0.send("pause").unwrap();
+                LOOP_SIGNAL.0.send(SignalType::Pause).unwrap();
             }
             Command::Resume => {
                 debug!("取消暂停，恢复运行...");
-                LOOP_SIGNAL.0.send("").unwrap();
+                LOOP_SIGNAL.0.send(SignalType::Run).unwrap();
             }
-            _ => unreachable!(),
+            Command::Extended(_) => unreachable!(),
         })?;
     Ok(())
 }

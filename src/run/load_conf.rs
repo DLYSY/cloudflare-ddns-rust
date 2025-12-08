@@ -20,12 +20,12 @@ pub struct Config {
     dns_records: DnsRecord,
 }
 
-pub fn init_conf() -> Result<Vec<DnsRecord>, String> {
+pub fn init_conf() -> Result<Vec<DnsRecord>, &'static str> {
     let config_file = match fs::File::open(DATA_DIR.join("config.json")) {
         Ok(success) => success,
         Err(_) => {
             error!("找不到 config.json");
-            return Err("找不到 config.json".to_string());
+            return Err("找不到 config.json");
         }
     };
 
@@ -36,7 +36,7 @@ pub fn init_conf() -> Result<Vec<DnsRecord>, String> {
         }
         Err(error) => {
             error!("config.json 格式不正确：\n {}", error);
-            return Err("config.json 格式不正确".to_string());
+            return Err("config.json 格式不正确");
         }
     };
 }

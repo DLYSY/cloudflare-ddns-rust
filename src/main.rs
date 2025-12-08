@@ -23,13 +23,13 @@ fn main() -> Result<(), String> {
                     Ok(_) => return Ok(()),
                     Err(e) => {
                         if e != "Use service control manager to start service" {
-                            return Err(e);
+                            return Err(e.to_string());
                         }
                     }
                 }
-                run::run("loop")?;
+                run::run(run::RunType::Loops)?;
             } else {
-                run::run("once")?;
+                run::run(run::RunType::Once)?;
             }
         }
         parse_args::Commands::Install { component } => match component {
