@@ -33,7 +33,7 @@ jobs:
         docker push quay.io/dlysy/cloudflareddns:linux
 
     - name: Archive Bin
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ddns_rust-linux-x86_64
         path: target/x86_64-unknown-linux-musl/release/ddns_rust
@@ -44,7 +44,7 @@ jobs:
       run: cargo build --target x86_64-unknown-linux-musl --release
     
     - name: Archive Bin (Skylake)
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ddns_rust-linux-x86_64-skylake
         path: target/x86_64-unknown-linux-musl/release/ddns_rust
@@ -70,7 +70,7 @@ jobs:
           docker push quay.io/dlysy/cloudflareddns:windows
 
       - name: Archive production artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ddns_rust-windows-x86_64
           path: target/release/ddns_rust.exe
