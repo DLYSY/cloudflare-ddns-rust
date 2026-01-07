@@ -12,7 +12,7 @@ reqwest = { version = "*", default-features = false, features = [
     "rustls-tls",
 ] }
 tokio = { version = "1", features = [
-    "rt-multi-thread",
+    "rt",
     "fs",
     "macros",
     "parking_lot",

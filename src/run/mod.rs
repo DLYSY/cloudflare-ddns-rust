@@ -28,7 +28,7 @@ fn system_signal_handler() {
     LOOP_SIGNAL.0.send(SignalType::Stop).unwrap();
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn run(run_type: RunType) -> Result<(), &'static str> {
     let config_json = load_conf::init_conf()?;
 
