@@ -1,24 +1,28 @@
-mod install;
 mod obj;
-mod parse_args;
 mod run;
-mod uninstall;
+mod initialize;
+mod setup;
+
+use initialize::{load_conf, parse_args};
+use setup::{install, uninstall};
 
 #[cfg(target_env = "musl")]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn main() -> Result<(), String> {
-    match &*obj::ARGS {
-        parse_args::Commands::Run {
-            once: _,
-            loops,
-            log,
-            datadir: _,
-        } => {
-            let _logger = obj::init_log(*log)?;
+    match &*obj::ARGS { 
+        parse_args::Commands::Run { loops, datadir: _ } => {
+            load_conf::Config::init()?;
+            let _logger = obj::init_log(
+                load_conf::CONFIG_JSON
+                    .get()
+                    .ok_or("CONFIG_JSON 未初始化")?
+                    .log_level,
+            )?;
+
+            #[cfg(windows)]
             if *loops {
-                #[cfg(windows)]
                 match run::run_service_windows() {
                     Ok(_) => return Ok(()),
                     Err(e) => {
@@ -27,10 +31,8 @@ fn main() -> Result<(), String> {
                         }
                     }
                 }
-                run::run(run::RunType::Loops)?;
-            } else {
-                run::run(run::RunType::Once)?;
             }
+            run::run(*loops)?;
         }
         parse_args::Commands::Install { component } => match component {
             parse_args::InstallComponents::Service => install::service()?,

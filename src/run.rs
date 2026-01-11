@@ -6,68 +6,80 @@ use tokio::time::{Duration, sleep};
 
 #[cfg(windows)]
 use windows_services::{Command, Service};
-mod load_conf;
-mod update_ip;
 
-pub enum RunType {
-    Once,
-    Loops,
-}
+use crate::initialize::load_conf;
+use crate::run::update_ip::update_ip;
+mod update_ip;
 
 #[derive(PartialEq)]
 enum SignalType {
     Run,
     Stop,
-    Pause
+    Pause,
 }
 
-static LOOP_SIGNAL: LazyLock<(Sender<SignalType>, Receiver<SignalType>)> = LazyLock::new(|| watch::channel(SignalType::Run));
+static LOOP_SIGNAL: LazyLock<(Sender<SignalType>, Receiver<SignalType>)> =
+    LazyLock::new(|| watch::channel(SignalType::Run));
 
 fn system_signal_handler() {
     debug!("退出中...");
     LOOP_SIGNAL.0.send(SignalType::Stop).unwrap();
 }
 
-#[tokio::main(flavor = "current_thread")]
-pub async fn run(run_type: RunType) -> Result<(), &'static str> {
-    let config_json = load_conf::init_conf()?;
+pub fn run(loops_run: bool) -> Result<(), String> {
+    let conf_json = load_conf::CONFIG_JSON
+        .get()
+        .ok_or("运行run函数时，CONFIG_JSON 未初始化")?;
 
-    let ipv4_config: Vec<&load_conf::DnsRecord> = config_json
+    let ipv4_config: Vec<&load_conf::DnsRecord> = conf_json
+        .dns_records
         .iter()
         .filter(|&x| x.record_type == "A")
         .collect();
-    let ipv6_config: Vec<&load_conf::DnsRecord> = config_json
+    let ipv6_config: Vec<&load_conf::DnsRecord> = conf_json
+        .dns_records
         .iter()
         .filter(|&x| x.record_type == "AAAA")
         .collect();
 
     let run_once = || async {
-        tokio::join!(
-            update_ip::update_ip(4, &ipv4_config),
-            update_ip::update_ip(6, &ipv6_config)
+        let _a = tokio::join!(
+            tokio::spawn(update_ip(4, ipv4_config.clone())),
+            tokio::spawn(update_ip(6, ipv6_config.clone()))
         );
         info!("本次更新完成");
     };
 
-    match run_type {
-        RunType::Once => {
-            run_once().await;
-            return Ok(());
-        }
-        RunType::Loops => {
+    if conf_json.mutli_thread {
+        tokio::runtime::Builder::new_multi_thread()
+    } else {
+        tokio::runtime::Builder::new_current_thread()
+    }
+    .enable_all()
+    .build()
+    .map_err(|e| {
+        let e = format!("无法创建tokio runtime，回溯错误：{e}");
+        error!("{e}");
+        e
+    })?
+    .block_on(async {
+        if loops_run {
             let mut rx = LOOP_SIGNAL.1.clone();
             #[cfg(windows)]
             let mut rx_pause = LOOP_SIGNAL.1.clone();
 
-            ctrlc::set_handler(system_signal_handler).unwrap();
-
+            ctrlc::set_handler(system_signal_handler).map_err(|e| {
+                let e = format!("无法创建系统信号处理器 | {e}");
+                error!("{e}");
+                e
+            })?;
 
             loop {
                 run_once().await;
 
                 tokio::select! {
                     _ = rx.wait_for(|signal| signal == &SignalType::Stop) => return Ok(()),
-                    _ = sleep(Duration::from_secs(60))=>(),
+                    _ = sleep(Duration::from_secs(conf_json.delay))=>(),
                 }
 
                 #[cfg(windows)]
@@ -76,8 +88,24 @@ pub async fn run(run_type: RunType) -> Result<(), &'static str> {
                     _ = rx_pause.wait_for(|signal| signal != &SignalType::Pause)=>(),
                 }
             }
+        } else {
+            run_once().await;
+            return Ok(());
         }
-    }
+    })
+}
+
+#[cfg(windows)]
+fn send_service_signal(signal: SignalType) {
+    LOOP_SIGNAL
+        .0
+        .send(signal)
+        .map_err(|e| {
+            let e = format!("LOOP_SIGNAL 已关闭 | {e}");
+            error!("{e}");
+            e
+        })
+        .expect("LOOP_SIGNAL 已关闭");
 }
 
 #[cfg(windows)]
@@ -89,7 +117,7 @@ pub fn run_service_windows() -> Result<(), &'static str> {
         .can_pause()
         .run(|_, command| match command {
             Command::Start => {
-                task = Some(std::thread::spawn(|| match run(RunType::Loops) {
+                task = Some(std::thread::spawn(|| match run(true) {
                     Ok(()) => (),
                     Err(_) => {
                         error!("检测到服务环境，强制退出进程...");
@@ -99,18 +127,18 @@ pub fn run_service_windows() -> Result<(), &'static str> {
             }
             Command::Stop => {
                 debug!("服务退出中...");
-                LOOP_SIGNAL.0.send(SignalType::Stop).unwrap();
+                send_service_signal(SignalType::Stop);
                 task.take().unwrap().join().unwrap();
             }
             Command::Pause => {
                 debug!("收到暂停信号");
-                LOOP_SIGNAL.0.send(SignalType::Pause).unwrap();
+                send_service_signal(SignalType::Pause);
             }
             Command::Resume => {
                 debug!("取消暂停，恢复运行...");
-                LOOP_SIGNAL.0.send(SignalType::Run).unwrap();
+                send_service_signal(SignalType::Run);
             }
-            Command::Extended(_) => unreachable!(),
+            Command::Extended(_) => unreachable!("程序内部错误：不接受扩展命令"),
         })?;
     Ok(())
 }

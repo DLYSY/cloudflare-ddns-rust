@@ -4,7 +4,6 @@ version = "0.2.0"
 edition = "2024"
 
 [dependencies]
-futures = "*"
 reqwest = { version = "*", default-features = false, features = [
     "json",
     "gzip",
@@ -12,7 +11,7 @@ reqwest = { version = "*", default-features = false, features = [
     "rustls-tls",
 ] }
 tokio = { version = "1", features = [
-    "rt",
+    "rt-multi-thread",
     "fs",
     "macros",
     "parking_lot",

@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand,ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use flexi_logger::LogSpecification;
 
 #[derive(Parser)]
@@ -9,24 +9,25 @@ pub struct CliArgs {
     pub command: Commands,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, serde::Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
 pub enum LogLevel {
     Trace,
     Debug,
     Info,
     Warn,
     Error,
-    Off
+    Off,
 }
 impl LogLevel {
-    pub fn to_loglevel (&self) -> LogSpecification {
+    pub fn to_loglevel(&self) -> LogSpecification {
         match self {
             LogLevel::Trace => LogSpecification::trace(),
-            LogLevel::Debug =>LogSpecification::debug(),
+            LogLevel::Debug => LogSpecification::debug(),
             LogLevel::Info => LogSpecification::info(),
             LogLevel::Warn => LogSpecification::warn(),
-            LogLevel::Error=> LogSpecification::error(),
-            LogLevel::Off=> LogSpecification::off()
+            LogLevel::Error => LogSpecification::error(),
+            LogLevel::Off => LogSpecification::off(),
         }
     }
 }
@@ -35,21 +36,13 @@ impl LogLevel {
 pub enum Commands {
     /// Run the application
     Run {
-        /// Run once (default behavior)
-        #[arg(long, default_value_t = true, conflicts_with = "loops")]
-        once: bool,
-
-        /// Run in loops
+        /// Run in loops(Default is run once)
         #[arg(long)]
         loops: bool,
 
-        /// Log level, info is default
-        #[arg(long)]
-        log: Option<LogLevel>,
-
         /// data path, default is <current execute>/data
         #[arg(long)]
-        datadir: Option<std::path::PathBuf>
+        datadir: Option<std::path::PathBuf>,
     },
     /// Install components
     Install {

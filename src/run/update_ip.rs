@@ -1,5 +1,3 @@
-use super::load_conf;
-use futures::future;
 use log::{debug, warn};
 use parking_lot::Mutex;
 use reqwest::{self, Client, ClientBuilder, Version, retry, tls};
@@ -83,7 +81,7 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
     }
 }
 
-async fn ask_api(ip: IpAddr, info: &load_conf::DnsRecord) -> Result<(), ()> {
+async fn ask_api(ip: IpAddr, info: crate::load_conf::DnsRecord) -> Result<(), ()> {
     #[derive(Debug, serde::Serialize)]
     struct ApiBody<'a> {
         #[serde(rename = "type")]
@@ -150,7 +148,7 @@ async fn ask_api(ip: IpAddr, info: &load_conf::DnsRecord) -> Result<(), ()> {
     Ok(())
 }
 
-pub async fn update_ip(ip_version: u8, config_json: &Vec<&load_conf::DnsRecord>) {
+pub async fn update_ip(ip_version: u8, config_json: Vec<&crate::load_conf::DnsRecord>) {
     if config_json.is_empty() {
         debug!("没有需要更新的IPv{ip_version}记录");
         return;
@@ -185,5 +183,10 @@ pub async fn update_ip(ip_version: u8, config_json: &Vec<&load_conf::DnsRecord>)
             }
         }
     }
-    future::join_all(config_json.iter().map(|&x| ask_api(ip, x))).await;
+    let mut task_set = tokio::task::JoinSet::new();
+
+    for i in config_json {
+        task_set.spawn(ask_api(ip, i.clone()));
+    }
+    let _a = task_set.join_all().await;
 }
