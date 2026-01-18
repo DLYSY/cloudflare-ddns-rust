@@ -23,6 +23,9 @@ serde_json = "*"
 flexi_logger = { version = "*", features = ["async", "compress", "colors"] }
 log = "*"
 parking_lot = "*"
+regex = "*"
+toml = "*"
+url = "*"
 
 [target.'cfg(target_env = "musl")'.dependencies]
 mimalloc = { version = "0.1", features = ["v3"] }

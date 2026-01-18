@@ -165,27 +165,32 @@ modified_on : 2000-01-01T00:00:00.000000Z
 在二进制文件目录创建`data/config.json`，结构如下：
 
 ```json
-[
-    {
-        "api_token": "<Your API Token>",
-        "zone_id": "<Your Zone ID>",
-        "dns_id": "<刚才获取的dns_id>",
-        "type": "<A or AAAA，其他类型暂时不支持>",
-        "name": "<www.example.com>",
-        "ttl": <int>,
-        "proxied": <类型为bool,表示是否使用CDN>
-    },
-    //<可以重复添加更多的记录，同字段配置方法类似>
-    {
-        "api_token": "",
-        "zone_id": "",
-        "dns_id": "",
-        "type": "",
-        "name": "example.com",
-        "ttl": 60,
-        "proxied": false
-    }
-]
+{
+    "log_level": "trace",
+    "mutli_thread": false,
+    "delay": 60,
+    "dns_records":[
+        {
+            "api_token": "<Your API Token>",
+            "zone_id": "<Your Zone ID>",
+            "dns_id": "<刚才获取的dns_id>",
+            "type": "<A or AAAA，其他类型暂时不支持>",
+            "name": "<www.example.com>",
+            "ttl": <int>,
+            "proxied": <类型为bool,表示是否使用CDN>
+        },
+        //<可以重复添加更多的记录，同字段配置方法类似>
+        {
+            "api_token": "",
+            "zone_id": "",
+            "dns_id": "",
+            "type": "",
+            "name": "example.com",
+            "ttl": 60,
+            "proxied": false
+        }
+    ]
+}
 ```
 
 ### 安装与运行

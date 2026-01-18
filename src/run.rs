@@ -7,7 +7,7 @@ use tokio::time::{Duration, sleep};
 #[cfg(windows)]
 use windows_services::{Command, Service};
 
-use crate::initialize::load_conf;
+use crate::initialize::load_conf::{self, RecordType};
 use crate::run::update_ip::update_ip;
 mod update_ip;
 
@@ -27,25 +27,25 @@ fn system_signal_handler() {
 }
 
 pub fn run(loops_run: bool) -> Result<(), String> {
-    let conf_json = load_conf::CONFIG_JSON
+    let conf_json = load_conf::CONFIG
         .get()
         .ok_or("运行run函数时，CONFIG_JSON 未初始化")?;
 
     let ipv4_config: Vec<&load_conf::DnsRecord> = conf_json
         .dns_records
         .iter()
-        .filter(|&x| x.record_type == "A")
+        .filter(|&x| x.record_type == RecordType::A)
         .collect();
     let ipv6_config: Vec<&load_conf::DnsRecord> = conf_json
         .dns_records
         .iter()
-        .filter(|&x| x.record_type == "AAAA")
+        .filter(|&x| x.record_type == RecordType::AAAA)
         .collect();
 
     let run_once = || async {
         let _a = tokio::join!(
-            tokio::spawn(update_ip(4, ipv4_config.clone())),
-            tokio::spawn(update_ip(6, ipv6_config.clone()))
+            tokio::spawn(update_ip(RecordType::A, ipv4_config.clone())),
+            tokio::spawn(update_ip(RecordType::AAAA, ipv6_config.clone()))
         );
         info!("本次更新完成");
     };

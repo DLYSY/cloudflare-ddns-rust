@@ -1,30 +1,79 @@
 # 配置DNS
 
-脚本默认会读取二进制文件同目录下的 `config.json`，结构如下：
+脚本默认会读取二进制文件同目录下的 `config.toml` 与 `config.json`作为配置，当两者同时存在时，`config.toml` 的优先级更高。
+
+## 配置文件结构
+
+我们先给出配置文件的结构，其具体字段将会在下文说明。
+
+### toml 格式的配置字段如下
+
+```toml
+delay = 60              # 循环周期，单位：秒，仅在 --loops 下生效，默认 60
+log_level = "trace"     # 日志级别，默认 info
+mutli_thread = false    # 多线程 runtime， 默认 false
+
+[[dns_records]]
+api_token = "<Your API Token>"
+zone_id = "<Your Zone ID>"
+dns_id = "<DNS ID>"
+type = "A"              # A 或 AAAA，其他记录暂不支持
+name = "example.com"    # 完整域名
+ttl = 180               # ttl
+proxied = false         #是否使用 CDN
+
+# 添加更多的记录
+[[dns_records]]
+api_token = "<Your API Token>"
+zone_id = "<Your Zone ID>"
+dns_id = "<DNS ID>"
+type = "AAAA"
+name = "www.example.com"
+ttl = 90
+proxied = true
+```
+
+### 等效 json 如下
 
 ```json
-[
-    {
-        "api_token": "<Your API Token>",
-        "zone_id": "<Your Zone ID>",
-        "dns_id": "<Your DNS ID>",
-        "type": "<A or AAAA，其他类型暂时不支持>",
-        "name": "<www.example.com>", //完整域名
-        "ttl": <int>,
-        "proxied": <类型为bool,表示是否使用CDN>
-    },
-    //可以重复添加更多的记录，同字段配置方法类似
-    {
-        "api_token": "",
-        "zone_id": "",
-        "dns_id": "",
-        "type": "",
-        "name": "example.com",
-        "ttl": 60,
-        "proxied": false
-    }
-]
+{
+   "delay": 60,
+   "log_level": "trace",
+   "mutli_thread": false,
+   "dns_records": [
+      {
+         "api_token": "<Your API Token>",
+         "zone_id": "<Your Zone ID>",
+         "dns_id": "<DNS ID>",
+         "type": "A",
+         "name": "example.com",
+         "ttl": 180,
+         "proxied": false
+      },
+      {
+         "api_token": "<Your API Token>",
+         "zone_id": "<Your Zone ID>",
+         "dns_id": "<DNS ID>",
+         "type": "AAAA",
+         "name": "www.example.com",
+         "ttl": 90,
+         "proxied": true
+      }
+   ]
+}
 ```
+
+## 各字段含义
+
+### mutli_thread
+
+这指定了使用何种 tokio runtime，默认情况下为 false，这将会使用 `current_thread` runtime。如果指定为 true，脚本将会使用 `mutli_thread` runtime，线程数量是 tokio 的默认值（与当前 CPU 线程数一致）。
+
+?> 因为整个脚本的性能瓶颈主要在网络 I/O，对于大多数用户，使用默认的单线程已经足够快了，多线程反而会导致额外的线程调度开销。如果你需要更新的记录确实很多（大几十上百个），那么可以尝试使用多线程的 runtime，这可能可以避免大量 TLS 与 json 解析造成的单线程 CPU 瓶颈。
+
+### log_level
+
+### delay
 
 ## 获取 Zone ID
 

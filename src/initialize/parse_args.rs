@@ -1,5 +1,4 @@
-use clap::{Parser, Subcommand, ValueEnum};
-use flexi_logger::LogSpecification;
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "Cloudflare DDNS")]
@@ -7,29 +6,6 @@ use flexi_logger::LogSpecification;
 pub struct CliArgs {
     #[command(subcommand)]
     pub command: Commands,
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, serde::Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
-pub enum LogLevel {
-    Trace,
-    Debug,
-    Info,
-    Warn,
-    Error,
-    Off,
-}
-impl LogLevel {
-    pub fn to_loglevel(&self) -> LogSpecification {
-        match self {
-            LogLevel::Trace => LogSpecification::trace(),
-            LogLevel::Debug => LogSpecification::debug(),
-            LogLevel::Info => LogSpecification::info(),
-            LogLevel::Warn => LogSpecification::warn(),
-            LogLevel::Error => LogSpecification::error(),
-            LogLevel::Off => LogSpecification::off(),
-        }
-    }
 }
 
 #[derive(Subcommand)]

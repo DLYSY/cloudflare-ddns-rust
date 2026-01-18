@@ -1,10 +1,12 @@
-use log::{debug, warn};
+use log::{debug, error, warn};
 use parking_lot::Mutex;
 use reqwest::{self, Client, ClientBuilder, Version, retry, tls};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 use std::sync::LazyLock;
 use std::time::Duration;
+
+use crate::initialize::load_conf::{CONFIG, RecordType};
 
 static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     let time_out_secs = Duration::from_secs(5);
@@ -27,20 +29,23 @@ static IPV4ADDR: LazyLock<Mutex<Ipv4Addr>> =
 static IPV6ADDR: LazyLock<Mutex<Ipv6Addr>> =
     LazyLock::new(|| Mutex::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)));
 
-async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
-    let ip_response = match CLIENT
-        .get(format!("https://ipv{ip_version}.icanhazip.com/"))
-        .send()
-        .await
-    {
+async fn get_ip(ip_version: RecordType) -> Result<IpAddr, ()> {
+    let ip_version_u8 = ip_version.as_u8();
+    let get_ip_url = match ip_version {
+        RecordType::A => &CONFIG.get().unwrap().ipv4_url,
+        RecordType::AAAA => &CONFIG.get().unwrap().ipv6_url,
+    };
+    let ip_response = match CLIENT.get(get_ip_url.as_ref()).send().await {
         Ok(success) => success,
         Err(error) => {
             if error.is_timeout() {
-                warn!("获取ipv{ip_version}时链接超时")
+                warn!("获取ipv{ip_version_u8}时链接超时",)
             } else if error.is_connect() {
-                warn!("获取ipv{ip_version}时链接错误{error}")
+                warn!("获取ipv{ip_version_u8}时链接错误{error}")
+            } else if error.is_builder() {
+                error!("获取ipv{ip_version_u8}的url不正确{error}");
             } else {
-                warn!("获取ipv{ip_version}时发生未定义错误{}", error)
+                warn!("获取ipv{ip_version_u8}时发生未定义错误{error}")
             }
             return Err(());
         }
@@ -48,7 +53,8 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
 
     if !ip_response.status().is_success() {
         warn!(
-            "获取ipv{ip_version}时状态码不正确{}",
+            "获取ipv{}时状态码不正确{}",
+            ip_version_u8,
             ip_response.status().as_u16()
         );
         return Err(());
@@ -57,27 +63,30 @@ async fn get_ip(ip_version: u8) -> Result<IpAddr, ()> {
     let ip_text = match ip_response.text().await {
         Ok(success) => success,
         Err(error) => {
-            warn!("获取IPv{ip_version}时响应正文时发生错误：{error}");
+            warn!(
+                "获取IPv{}时响应正文时发生错误：{}",
+                ip_version_u8,
+                error
+            );
             return Err(());
         }
     };
 
     match ip_version {
-        4 => match Ipv4Addr::from_str(ip_text.trim()) {
+        RecordType::A => match Ipv4Addr::from_str(ip_text.trim()) {
             Ok(ip) => return Ok(IpAddr::V4(ip)),
             Err(_) => {
                 warn!("获取到格式不正确的ipv4");
                 return Err(());
             }
         },
-        6 => match Ipv6Addr::from_str(ip_text.trim()) {
+        RecordType::AAAA => match Ipv6Addr::from_str(ip_text.trim()) {
             Ok(ip) => return Ok(IpAddr::V6(ip)),
             Err(_) => {
                 warn!("获取到格式不正确的ipv6");
                 return Err(());
             }
         },
-        _ => unreachable!("程序内部错误：get_ip函数获取到不可能的值{ip_version}"),
     }
 }
 
@@ -85,14 +94,14 @@ async fn ask_api(ip: IpAddr, info: crate::load_conf::DnsRecord) -> Result<(), ()
     #[derive(Debug, serde::Serialize)]
     struct ApiBody<'a> {
         #[serde(rename = "type")]
-        record_type: &'a String,
+        record_type: &'static str,
         name: &'a String,
         ttl: u32,
         proxied: bool,
         content: String,
     }
     let json_body = ApiBody {
-        record_type: &info.record_type,
+        record_type: info.record_type.as_str(),
         name: &info.name,
         ttl: info.ttl,
         proxied: info.proxied,
@@ -148,15 +157,19 @@ async fn ask_api(ip: IpAddr, info: crate::load_conf::DnsRecord) -> Result<(), ()
     Ok(())
 }
 
-pub async fn update_ip(ip_version: u8, config_json: Vec<&crate::load_conf::DnsRecord>) {
+pub async fn update_ip(ip_version: RecordType, config_json: Vec<&crate::load_conf::DnsRecord>) {
     if config_json.is_empty() {
-        debug!("没有需要更新的IPv{ip_version}记录");
+        debug!("没有需要更新的{}记录", ip_version.as_str());
         return;
     }
 
     let ip = match get_ip(ip_version).await {
         Ok(success) => {
-            debug!("获取成功，当前IPv{ip_version}地址为：{success}");
+            debug!(
+                "获取成功，当前IPv{}地址为：{}",
+                ip_version.as_str(),
+                success
+            );
             success
         }
         Err(_) => return,
@@ -185,8 +198,9 @@ pub async fn update_ip(ip_version: u8, config_json: Vec<&crate::load_conf::DnsRe
     }
     let mut task_set = tokio::task::JoinSet::new();
 
-    for i in config_json {
+    config_json.iter().for_each(|&i| {
         task_set.spawn(ask_api(ip, i.clone()));
-    }
+    });
+
     let _a = task_set.join_all().await;
 }

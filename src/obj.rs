@@ -7,18 +7,13 @@ use log::debug;
 use std::env::{current_dir, current_exe};
 use std::sync::LazyLock;
 
-use crate::parse_args::{self, LogLevel};
+use crate::initialize::parse_args;
 
 pub static ARGS: LazyLock<parse_args::Commands> =
     LazyLock::new(|| parse_args::CliArgs::parse().command);
 
 pub static DATA_DIR: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
-    let parse_args::Commands::Run {
-        loops: _,
-        // log: _,
-        datadir,
-    } = &*ARGS
-    else {
+    let parse_args::Commands::Run { loops: _, datadir } = &*ARGS else {
         unreachable!()
     };
 
@@ -36,8 +31,9 @@ pub static DATA_DIR: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
     })
 });
 
-pub fn init_log(log_level: LogLevel) -> Result<LoggerHandle, String> {
-    let logger = Logger::with(log_level.to_loglevel())
+pub fn init_log(log_level: &String) -> Result<LoggerHandle, String> {
+    let logger = Logger::try_with_str(log_level)
+        .map_err(|e| format!("log 等级格式错误，参考 https://docs.rs/flexi_logger/latest/flexi_logger/struct.LogSpecification.html \n{e}"))?
         .log_to_file(
             FileSpec::default()
                 .directory(DATA_DIR.join("logs")) //定义日志文件位置

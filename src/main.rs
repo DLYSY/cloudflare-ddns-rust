@@ -15,10 +15,10 @@ fn main() -> Result<(), String> {
         parse_args::Commands::Run { loops, datadir: _ } => {
             load_conf::Config::init()?;
             let _logger = obj::init_log(
-                load_conf::CONFIG_JSON
+                &load_conf::CONFIG
                     .get()
                     .ok_or("CONFIG_JSON 未初始化")?
-                    .log_level,
+                    .log_level
             )?;
 
             #[cfg(windows)]
