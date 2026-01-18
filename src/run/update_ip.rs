@@ -24,10 +24,8 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .unwrap()
 });
 
-static IPV4ADDR: LazyLock<Mutex<Ipv4Addr>> =
-    LazyLock::new(|| Mutex::new(Ipv4Addr::new(127, 0, 0, 1)));
-static IPV6ADDR: LazyLock<Mutex<Ipv6Addr>> =
-    LazyLock::new(|| Mutex::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)));
+static IPV4ADDR: Mutex<Ipv4Addr> = Mutex::new(Ipv4Addr::UNSPECIFIED);
+static IPV6ADDR: Mutex<Ipv6Addr> = Mutex::new(Ipv6Addr::UNSPECIFIED);
 
 async fn get_ip(ip_version: RecordType) -> Result<IpAddr, ()> {
     let ip_version_u8 = ip_version.as_u8();
@@ -63,24 +61,24 @@ async fn get_ip(ip_version: RecordType) -> Result<IpAddr, ()> {
     let ip_text = match ip_response.text().await {
         Ok(success) => success,
         Err(error) => {
-            warn!(
-                "获取IPv{}时响应正文时发生错误：{}",
-                ip_version_u8,
-                error
-            );
+            warn!("获取IPv{}时响应正文时发生错误：{}", ip_version_u8, error);
             return Err(());
         }
     };
 
+    let ip_text = &ip_version.re().captures(&ip_text).ok_or_else(|| {
+        warn!("无法从{get_ip_url}获取IPv{ip_version_u8}");
+    })?[0];
+
     match ip_version {
-        RecordType::A => match Ipv4Addr::from_str(ip_text.trim()) {
+        RecordType::A => match Ipv4Addr::from_str(ip_text) {
             Ok(ip) => return Ok(IpAddr::V4(ip)),
             Err(_) => {
                 warn!("获取到格式不正确的ipv4");
                 return Err(());
             }
         },
-        RecordType::AAAA => match Ipv6Addr::from_str(ip_text.trim()) {
+        RecordType::AAAA => match Ipv6Addr::from_str(ip_text) {
             Ok(ip) => return Ok(IpAddr::V6(ip)),
             Err(_) => {
                 warn!("获取到格式不正确的ipv6");
@@ -165,11 +163,7 @@ pub async fn update_ip(ip_version: RecordType, config_json: Vec<&crate::load_con
 
     let ip = match get_ip(ip_version).await {
         Ok(success) => {
-            debug!(
-                "获取成功，当前IPv{}地址为：{}",
-                ip_version.as_str(),
-                success
-            );
+            debug!("获取成功，当前IPv{}地址为：{}", ip_version.as_u8(), success);
             success
         }
         Err(_) => return,

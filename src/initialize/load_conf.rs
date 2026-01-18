@@ -1,6 +1,7 @@
 use crate::obj::DATA_DIR;
 use log::{debug, error, trace};
-use std::sync::OnceLock;
+use regex::{Regex, RegexBuilder};
+use std::sync::{LazyLock, OnceLock};
 use std::{fs, io};
 
 pub static CONFIG: OnceLock<Config> = OnceLock::new();
@@ -21,6 +22,23 @@ impl RecordType {
         match self {
             RecordType::A => 4,
             RecordType::AAAA => 6,
+        }
+    }
+    pub fn re(&self) -> Regex {
+        static RE_IPV4: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])").unwrap()
+        });
+        static RE_IPV6: LazyLock<Regex> = LazyLock::new(|| {
+            RegexBuilder::new(
+                r"\b(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}\b|\b(?:[A-F0-9]{1,4}:)*:[A-F0-9]{1,4}\b",
+            )
+            .case_insensitive(true)
+            .build()
+            .unwrap()
+        });
+        match self {
+            RecordType::A => RE_IPV4.clone(),
+            RecordType::AAAA => RE_IPV6.clone(),
         }
     }
 }
