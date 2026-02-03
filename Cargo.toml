@@ -25,7 +25,7 @@ log = "*"
 parking_lot = "*"
 regex = "*"
 toml = "*"
-url = "*"
+url = {version = "*", features = ["serde"]}
 
 [target.'cfg(target_env = "musl")'.dependencies]
 mimalloc = { version = "0.1", features = ["v3"] }
