@@ -12,7 +12,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-linux:
+  release-linux:
+    if: ${{ github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
@@ -51,7 +52,8 @@ jobs:
 
 
 
-  build-windows:
+  release-windows:
+    if: ${{ github.ref_name == 'main' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -74,3 +76,25 @@ jobs:
         with:
           name: ddns_rust-windows-x86_64
           path: target/release/ddns_rust.exe
+
+  debug-linux:
+    if: ${{ github.ref_name != 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Build
+      run: |
+        sudo apt install musl-tools -y
+        rustup target add x86_64-unknown-linux-musl
+        cargo build --target x86_64-unknown-linux-musl
+
+  debug-windows:
+    if: ${{ github.ref_name != 'main' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build
+        run: |
+          cargo build
