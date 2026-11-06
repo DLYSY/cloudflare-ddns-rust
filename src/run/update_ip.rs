@@ -172,21 +172,16 @@ pub async fn update_ip(ip_version: RecordType, config_json: Vec<&crate::load_con
     // 检查IP是否变化
     match ip {
         IpAddr::V4(ipv4) => {
-            let mut ipv4_inner = IPV4ADDR.lock();
-            if ipv4 == *ipv4_inner {
+            if ipv4 == *IPV4ADDR.lock() {
                 debug!("IPv4地址未改变，跳过更新");
                 return;
-            } else {
-                *ipv4_inner = ipv4;
             }
         }
+
         IpAddr::V6(ipv6) => {
-            let mut ipv6_inner = IPV6ADDR.lock();
-            if ipv6 == *ipv6_inner {
+            if ipv6 == *IPV6ADDR.lock() {
                 debug!("IPv6地址未改变，跳过更新");
                 return;
-            } else {
-                *ipv6_inner = ipv6;
             }
         }
     }
@@ -196,5 +191,11 @@ pub async fn update_ip(ip_version: RecordType, config_json: Vec<&crate::load_con
         task_set.spawn(ask_api(ip, i.clone()));
     });
 
-    let _a = task_set.join_all().await;
+    //在 api 全部请求成功后更新本地 ip 缓存
+    if task_set.join_all().await.iter().all(Result::is_ok) {
+        match ip {
+            IpAddr::V4(ipv4) => *IPV4ADDR.lock() = ipv4,
+            IpAddr::V6(ipv6) => *IPV6ADDR.lock() = ipv6,
+        }
+    };
 }
