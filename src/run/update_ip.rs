@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::sync::LazyLock;
 use std::time::Duration;
 
-use crate::initialize::load_conf::{CONFIG, RecordType};
+use crate::initialize::load_conf::{Config, DnsRecord, RecordType};
 
 static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     let time_out_secs = Duration::from_secs(5);
@@ -27,11 +27,11 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
 static IPV4ADDR: Mutex<Ipv4Addr> = Mutex::new(Ipv4Addr::UNSPECIFIED);
 static IPV6ADDR: Mutex<Ipv6Addr> = Mutex::new(Ipv6Addr::UNSPECIFIED);
 
-async fn get_ip(ip_version: RecordType) -> Result<IpAddr, ()> {
+async fn get_ip(ip_version: RecordType, config: &Config) -> Result<IpAddr, ()> {
     let ip_version_u8 = ip_version.as_u8();
     let get_ip_url = match ip_version {
-        RecordType::A => &CONFIG.get().unwrap().ipv4_url,
-        RecordType::AAAA => &CONFIG.get().unwrap().ipv6_url,
+        RecordType::A => &config.ipv4_url,
+        RecordType::AAAA => &config.ipv6_url,
     };
     let ip_response = match CLIENT.get(get_ip_url.as_ref()).send().await {
         Ok(success) => success,
@@ -88,7 +88,7 @@ async fn get_ip(ip_version: RecordType) -> Result<IpAddr, ()> {
     }
 }
 
-async fn ask_api(ip: IpAddr, info: crate::load_conf::DnsRecord) -> Result<(), ()> {
+async fn ask_api(ip: IpAddr, info: &'static DnsRecord) -> Result<(), ()> {
     #[derive(Debug, serde::Serialize)]
     struct ApiBody<'a> {
         #[serde(rename = "type")]
@@ -155,13 +155,17 @@ async fn ask_api(ip: IpAddr, info: crate::load_conf::DnsRecord) -> Result<(), ()
     Ok(())
 }
 
-pub async fn update_ip(ip_version: RecordType, config_json: Vec<&crate::load_conf::DnsRecord>) {
-    if config_json.is_empty() {
+pub async fn update_ip(ip_version: RecordType, config: &'static Config) {
+    if !config
+        .dns_records
+        .iter()
+        .any(|record| record.record_type == ip_version)
+    {
         debug!("没有需要更新的{}记录", ip_version.as_str());
         return;
     }
 
-    let ip = match get_ip(ip_version).await {
+    let ip = match get_ip(ip_version, config).await {
         Ok(success) => {
             debug!("获取成功，当前IPv{}地址为：{}", ip_version.as_u8(), success);
             success
@@ -187,9 +191,14 @@ pub async fn update_ip(ip_version: RecordType, config_json: Vec<&crate::load_con
     }
     let mut task_set = tokio::task::JoinSet::new();
 
-    config_json.iter().for_each(|&i| {
-        task_set.spawn(ask_api(ip, i.clone()));
-    });
+    // record 借自全局配置，是 &'static DnsRecord，可以直接跨任务传递，无需 clone
+    for record in config
+        .dns_records
+        .iter()
+        .filter(|record| record.record_type == ip_version)
+    {
+        task_set.spawn(ask_api(ip, record));
+    }
 
     //在 api 全部请求成功后更新本地 ip 缓存
     if task_set.join_all().await.iter().all(Result::is_ok) {

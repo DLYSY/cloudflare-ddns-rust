@@ -28,30 +28,22 @@ fn system_signal_handler() {
 }
 
 pub fn run(loops_run: bool) -> Result<(), String> {
-    let conf_json = load_conf::CONFIG
+    // CONFIG 是全局 static，因此 CONFIG.get() 返回的是 &'static Config，
+    // 由它派生出的 &'static DnsRecord 同样满足 'static，
+    // 可以直接借用并交给 tokio::spawn，无需每轮 clone 一份 Vec。
+    let conf: &'static load_conf::Config = load_conf::CONFIG
         .get()
         .ok_or("运行run函数时，CONFIG_JSON 未初始化")?;
 
-    let ipv4_config: Vec<&load_conf::DnsRecord> = conf_json
-        .dns_records
-        .iter()
-        .filter(|&x| x.record_type == RecordType::A)
-        .collect();
-    let ipv6_config: Vec<&load_conf::DnsRecord> = conf_json
-        .dns_records
-        .iter()
-        .filter(|&x| x.record_type == RecordType::AAAA)
-        .collect();
-
-    let run_once = || async {
+    let run_once = || async move {
         let _a = tokio::join!(
-            tokio::spawn(update_ip(RecordType::A, ipv4_config.clone())),
-            tokio::spawn(update_ip(RecordType::AAAA, ipv6_config.clone()))
+            tokio::spawn(update_ip(RecordType::A, conf)),
+            tokio::spawn(update_ip(RecordType::AAAA, conf))
         );
         info!("本次更新完成");
     };
 
-    if conf_json.mutli_thread {
+    if conf.mutli_thread {
         tokio::runtime::Builder::new_multi_thread()
     } else {
         tokio::runtime::Builder::new_current_thread()
@@ -80,7 +72,7 @@ pub fn run(loops_run: bool) -> Result<(), String> {
 
                 tokio::select! {
                     _ = rx.wait_for(|signal| signal == &SignalType::Stop) => return Ok(()),
-                    _ = sleep(Duration::from_secs(conf_json.delay))=>(),
+                    _ = sleep(Duration::from_secs(conf.delay))=>(),
                 }
 
                 #[cfg(windows)]
