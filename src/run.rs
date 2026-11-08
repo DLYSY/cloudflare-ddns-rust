@@ -15,6 +15,7 @@ mod update_ip;
 enum SignalType {
     Run,
     Stop,
+    #[cfg(windows)]
     Pause,
 }
 
