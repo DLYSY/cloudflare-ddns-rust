@@ -30,9 +30,7 @@ jobs:
         sudo apt install musl-tools -y
         rustup target add x86_64-unknown-linux-musl
         cargo build --target x86_64-unknown-linux-musl --release
-        mv target/x86_64-unknown-linux-musl/release/ddns_rust target/x86_64-unknown-linux-musl/release/ddns_rust-linux-musl-x64
         cargo build --release
-        mv target/release/ddns_rust target/release/ddns_rust-linux-gnu-x64
         docker build -f linux.dockerfile -t quay.io/dlysy/cloudflareddns:linux .
         docker push quay.io/dlysy/cloudflareddns:linux
 
