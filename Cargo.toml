@@ -25,10 +25,10 @@ log = "*"
 parking_lot = "*"
 regex = "*"
 toml = "*"
-url = {version = "*", features = ["serde"]}
+url = { version = "*", features = ["serde"] }
 
-[target.'cfg(target_env = "musl")'.dependencies]
-mimalloc = { version = "0.1", features = ["v3"] }
+# [target.'cfg(target_env = "musl")'.dependencies]
+# mimalloc = { version = "0.1" }
 
 [target.'cfg(windows)'.dependencies]
 windows-services = "*"
