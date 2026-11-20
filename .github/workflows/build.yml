@@ -39,14 +39,14 @@ jobs:
     - name: Upload Musl
       uses: actions/upload-artifact@v7
       with:
-        path: target/x86_64-unknown-linux-musl/release/ddns_rust-linux-musl-x64
-        archive: false
+        name: ddns_rust-linux-musl-x64
+        path: target/x86_64-unknown-linux-musl/release/ddns_rust
 
     - name: Upload GNU
       uses: actions/upload-artifact@v7
       with:
-        path: target/release/ddns_rust-linux-gnu-x64
-        archive: false
+        name: ddns_rust-linux-gnu-x64
+        path: target/release/ddns_rust
 
     - name: Build GNU Skylake
       env: 
@@ -58,9 +58,8 @@ jobs:
     - name: Upload GNU Skylake 
       uses: actions/upload-artifact@v7
       with:
-        path: target/release/ddns_rust-linux-gnu-x64-skylake
-        archive: false
-
+        name: ddns_rust-linux-gnu-x64-skylake
+        path: target/x86_64-unknown-linux-musl/release/ddns_rust
 
 
   release-windows:
