@@ -8,7 +8,7 @@ reqwest = { version = "*", default-features = false, features = [
     "json",
     "gzip",
     "http2",
-    "default-tls",
+    "rustls",
 ] }
 tokio = { version = "1", features = [
     "rt-multi-thread",
@@ -27,15 +27,12 @@ regex = "*"
 toml = "*"
 url = { version = "*", features = ["serde"] }
 
-# [target.'cfg(target_env = "musl")'.dependencies]
-# mimalloc = { version = "0.1" }
-
 [target.'cfg(windows)'.dependencies]
 windows-services = "*"
 
 [profile.release]
 strip = true             # 自动从二进制文件去除符号信息.
-opt-level = "s"
+opt-level = "z"
 codegen-units = 1
 lto = "fat"              # 完全 LTO（编译慢但性能更好）
 panic = "abort"
@@ -46,4 +43,4 @@ incremental = false      # 关闭增量编译，减少内存占用
 
 # 为所有依赖也强制设置 opt-level
 [profile.release.package."*"]
-opt-level = "s"
+opt-level = "z"

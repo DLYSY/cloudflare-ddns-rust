@@ -6,10 +6,6 @@ mod setup;
 use initialize::{load_conf, parse_args};
 use setup::{install, uninstall};
 
-// #[cfg(target_env = "musl")]
-// #[global_allocator]
-// static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
 fn main() -> Result<(), String> {
     match &*obj::ARGS { 
         parse_args::Commands::Run { loops, datadir: _ } => {
