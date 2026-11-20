@@ -30,34 +30,35 @@ jobs:
         sudo apt install musl-tools -y
         rustup target add x86_64-unknown-linux-musl
         cargo build --target x86_64-unknown-linux-musl --release
+        mv target/x86_64-unknown-linux-musl/release/ddns_rust target/x86_64-unknown-linux-musl/release/ddns_rust-linux-musl-x64
         cargo build --release
+        mv target/release/ddns_rust target/release/ddns_rust-linux-gnu-x64
         docker build -f linux.dockerfile -t quay.io/dlysy/cloudflareddns:linux .
         docker push quay.io/dlysy/cloudflareddns:linux
 
     - name: Upload Musl
       uses: actions/upload-artifact@v7
       with:
-        name: ddns_rust-linux-musl-x64
-        path: target/x86_64-unknown-linux-musl/release/ddns_rust
+        path: target/x86_64-unknown-linux-musl/release/ddns_rust-linux-musl-x64
         archive: false
 
     - name: Upload GNU
       uses: actions/upload-artifact@v7
       with:
-        name: ddns_rust-linux-gnu-x64
-        path: target/release/ddns_rust
+        path: target/release/ddns_rust-linux-gnu-x64
         archive: false
 
     - name: Build GNU Skylake
       env: 
         RUSTFLAGS: -C target-cpu=skylake
-      run: cargo build --release
+      run: |
+        cargo build --release
+        mv target/release/ddns_rust target/release/ddns_rust-linux-gnu-x64-skylake
     
     - name: Upload GNU Skylake 
       uses: actions/upload-artifact@v7
       with:
-        name: ddns_rust-linux-gnu-x64-skylake
-        path: target/x86_64-unknown-linux-musl/release/ddns_rust
+        path: target/release/ddns_rust-linux-gnu-x64-skylake
         archive: false
 
 
