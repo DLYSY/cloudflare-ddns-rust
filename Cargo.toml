@@ -8,7 +8,7 @@ reqwest = { version = "*", default-features = false, features = [
     "json",
     "gzip",
     "http2",
-    "rustls-tls",
+    "default-tls",
 ] }
 tokio = { version = "1", features = [
     "rt-multi-thread",
