@@ -80,6 +80,18 @@ jobs:
           path: target/release/ddns_rust.exe
           compression-level: 9
 
+      - name: Build Static
+        env: 
+          RUSTFLAGS: -C target-feature=+crt-static
+        run: cargo build --release
+
+      - name: Upload Windows Static Bin
+        uses: actions/upload-artifact@v7
+        with:
+          name: ddns_rust-windows-x64-static
+          path: target/release/ddns_rust.exe
+          compression-level: 9
+
   debug-linux:
     if: ${{ github.ref_name != 'main' }}
     runs-on: ubuntu-latest
