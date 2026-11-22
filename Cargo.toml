@@ -4,12 +4,6 @@ version = "0.2.0"
 edition = "2024"
 
 [dependencies]
-reqwest = { version = "*", default-features = false, features = [
-    "json",
-    "gzip",
-    "http2",
-    "rustls",
-] }
 tokio = { version = "1", features = [
     "rt-multi-thread",
     "fs",
@@ -27,8 +21,22 @@ regex = "*"
 toml = "*"
 url = { version = "*", features = ["serde"] }
 
+[target.'cfg(not(windows))'.dependencies]
+reqwest = { version = "*", default-features = false, features = [
+    "json",
+    "gzip",
+    "http2",
+    "rustls",
+] }
+
 [target.'cfg(windows)'.dependencies]
 windows-services = "*"
+reqwest = { version = "*", default-features = false, features = [
+    "json",
+    "gzip",
+    "http2",
+    "native-tls",
+] }
 
 [profile.release]
 strip = true             # 自动从二进制文件去除符号信息.
