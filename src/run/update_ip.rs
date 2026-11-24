@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::sync::LazyLock;
 use std::time::Duration;
 
-use crate::initialize::load_conf::{Config, DnsRecord, RecordType};
+use crate::initialize::load_conf::{DnsRecord, RecordType};
 
 static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     let time_out_secs = Duration::from_secs(5);
@@ -27,12 +27,8 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
 static IPV4ADDR: Mutex<Ipv4Addr> = Mutex::new(Ipv4Addr::UNSPECIFIED);
 static IPV6ADDR: Mutex<Ipv6Addr> = Mutex::new(Ipv6Addr::UNSPECIFIED);
 
-async fn get_ip(ip_version: RecordType, config: &Config) -> Result<IpAddr, ()> {
+async fn get_ip(ip_version: RecordType, get_ip_url: &url::Url) -> Result<IpAddr, ()> {
     let ip_version_u8 = ip_version.as_u8();
-    let get_ip_url = match ip_version {
-        RecordType::A => &config.ipv4_url,
-        RecordType::AAAA => &config.ipv6_url,
-    };
     let ip_response = match CLIENT.get(get_ip_url.as_ref()).send().await {
         Ok(success) => success,
         Err(error) => {
@@ -155,17 +151,8 @@ async fn ask_api(ip: IpAddr, info: &'static DnsRecord) -> Result<(), ()> {
     Ok(())
 }
 
-pub async fn update_ip(ip_version: RecordType, config: &'static Config) {
-    if !config
-        .dns_records
-        .iter()
-        .any(|record| record.record_type == ip_version)
-    {
-        debug!("没有需要更新的{}记录", ip_version.as_str());
-        return;
-    }
-
-    let ip = match get_ip(ip_version, config).await {
+pub async fn update_ip(ip_version: RecordType, records: &'static Vec<DnsRecord>, get_ip_url: &url::Url) {
+    let ip = match get_ip(ip_version, get_ip_url).await {
         Ok(success) => {
             debug!("获取成功，当前IPv{}地址为：{}", ip_version.as_u8(), success);
             success
@@ -191,11 +178,8 @@ pub async fn update_ip(ip_version: RecordType, config: &'static Config) {
     }
     let mut task_set = tokio::task::JoinSet::new();
 
-    // record 借自全局配置，是 &'static DnsRecord，可以直接跨任务传递，无需 clone
-    for record in config
-        .dns_records
-        .iter()
-        .filter(|record| record.record_type == ip_version)
+    // record 借自全局配置，是 &'static Vec<DnsRecord>，可以直接跨任务传递，无需 clone
+    for record in records
     {
         task_set.spawn(ask_api(ip, record));
     }

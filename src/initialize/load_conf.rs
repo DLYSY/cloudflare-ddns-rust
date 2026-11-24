@@ -43,7 +43,7 @@ impl RecordType {
     }
 }
 
-#[derive(Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize)]
 pub struct DnsRecord {
     pub api_token: String,
     pub zone_id: String,
@@ -75,8 +75,8 @@ fn get_default_ipv6_url() -> url::Url {
     url::Url::parse("https://ipv6.icanhazip.com/").unwrap()
 }
 
-#[derive(Debug, serde::Deserialize, Clone)]
-pub struct Config {
+#[derive(Debug, serde::Deserialize)]
+pub struct RawConfig {
     #[serde(default = "get_default_delay")]
     pub delay: u64,
     #[serde(default = "get_default_mutli_thread")]
@@ -95,14 +95,25 @@ enum ConfigFile {
     Toml(Vec<u8>),
 }
 impl ConfigFile {
-    fn parse(self) -> Result<Config, String> {
+    fn parse(self) -> Result<RawConfig, String> {
         match self {
             ConfigFile::Json(f) => serde_json::from_reader(io::BufReader::new(f))
                 .map_err(|e| format!("config.json 格式不正确 | {}", e)),
-            ConfigFile::Toml(f) => toml::from_slice::<Config>(&f)
+            ConfigFile::Toml(f) => toml::from_slice::<RawConfig>(&f)
                 .map_err(|e| format!("config.toml 格式不正确 | {}", e)),
         }
     }
+}
+
+#[derive(Debug)]
+pub struct Config {
+    pub delay: u64,
+    pub mutli_thread: bool,
+    pub log_level: String,
+    pub ipv4_url: url::Url,
+    pub ipv6_url: url::Url,
+    pub ipv4_records: Vec<DnsRecord>,
+    pub ipv6_records: Vec<DnsRecord>,
 }
 
 impl Config {
@@ -119,9 +130,22 @@ impl Config {
         };
 
         match config_file.parse() {
-            Ok(config) => {
+            Ok(raw_config) => {
                 debug!("成功解析配置文件");
-                CONFIG.set(config).expect("Config should only be set once");
+                let (ipv4_records, ipv6_records) = raw_config
+                    .dns_records
+                    .into_iter()
+                    .partition(|record| record.record_type == RecordType::A);
+
+                CONFIG.set(Config {
+                    delay: raw_config.delay,
+                    mutli_thread: raw_config.mutli_thread,
+                    log_level: raw_config.log_level,
+                    ipv4_url: raw_config.ipv4_url,
+                    ipv6_url: raw_config.ipv6_url,
+                    ipv4_records: ipv4_records,
+                    ipv6_records: ipv6_records,
+                }).expect("Config should only be set once");
             }
             Err(e) => {
                 error!("{}", e);
