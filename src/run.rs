@@ -28,18 +28,23 @@ fn system_signal_handler() {
 }
 
 pub fn run(loops_run: bool) -> Result<(), String> {
-    // CONFIG 是全局 static，因此 CONFIG.get() 返回的是 &'static Config，
-    // 由它派生出的 &'static DnsRecord 同样满足 'static，
-    // 可以直接借用并交给 tokio::spawn，无需每轮 clone 一份 Vec。
     let conf: &'static load_conf::Config = load_conf::CONFIG
         .get()
         .ok_or("运行run函数时，CONFIG_JSON 未初始化")?;
 
+    if conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty(){
+        return Err("".to_string());
+    }
+
     let run_once = || async move {
-        let _a = tokio::join!(
-            tokio::spawn(update_ip(RecordType::A, conf)),
-            tokio::spawn(update_ip(RecordType::AAAA, conf))
-        );
+        let mut update_tasks = tokio::task::JoinSet::new();
+        if !conf.ipv4_records.is_empty() {
+            update_tasks.spawn(update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url));
+        }
+        if !conf.ipv6_records.is_empty() {
+            update_tasks.spawn(update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url));
+        }
+        let _a = update_tasks.join_all().await;
         info!("本次更新完成");
     };
 
