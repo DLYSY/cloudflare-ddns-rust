@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use log::{debug, error, info};
 use std::sync::LazyLock;
-use std::{future::Future, pin::Pin};
+use tokio::task::JoinHandle;
 use tokio::sync::watch::{self, Receiver, Sender};
 use tokio::time::{Duration, sleep};
 
@@ -37,27 +37,25 @@ pub fn run(loops_run: bool) -> Result<(), String> {
         return Err("".to_string());
     }
 
-    type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
-
-    type AsyncTask<T> = Box<dyn Fn() -> BoxFuture<T> + Send + Sync>;
+    type AsyncTask<T> = Box<dyn Fn() -> JoinHandle<T> + Send + Sync>;
 
     let run_once: AsyncTask<()> = if !conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty() {
         info!("没有找到需要更新的ipv6记录");
         Box::new(move || {
-            Box::pin(async move {
+            tokio::spawn(async move {
                 update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url).await;
             })
         })
     } else if conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
         info!("没有找到需要更新的ipv4记录");
         Box::new(move || {
-            Box::pin(async move {
+            tokio::spawn(async move {
                 update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url).await;
             })
         })
     } else if !conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
         Box::new(move || {
-            Box::pin(async move {
+            tokio::spawn(async move {
                 tokio::join!(
                     update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url),
                     update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url)
@@ -93,7 +91,7 @@ pub fn run(loops_run: bool) -> Result<(), String> {
             })?;
 
             loop {
-                run_once().await;
+                let _ = run_once().await;
 
                 tokio::select! {
                     _ = rx.wait_for(|signal| signal == &SignalType::Stop) => return Ok(()),
@@ -107,7 +105,7 @@ pub fn run(loops_run: bool) -> Result<(), String> {
                 }
             }
         } else {
-            run_once().await;
+            let _ = run_once().await;
             return Ok(());
         }
     })
