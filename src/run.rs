@@ -1,8 +1,8 @@
 #[allow(unused_imports)]
 use log::{debug, error, info};
 use std::sync::LazyLock;
-use tokio::task::JoinHandle;
 use tokio::sync::watch::{self, Receiver, Sender};
+use tokio::task::JoinHandle;
 use tokio::time::{Duration, sleep};
 
 #[cfg(windows)]
@@ -33,25 +33,19 @@ pub fn run(loops_run: bool) -> Result<(), String> {
         .get()
         .ok_or("运行run函数时，CONFIG_JSON 未初始化")?;
 
-    if conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty() {
-        return Err("".to_string());
-    }
-
     type AsyncTask<T> = Box<dyn Fn() -> JoinHandle<T> + Send + Sync>;
 
     let run_once: AsyncTask<()> = if !conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty() {
         info!("没有找到需要更新的ipv6记录");
-        Box::new(move || {
-            tokio::spawn(async move {
-                update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url).await;
-            })
-        })
+        Box::new(move || tokio::spawn(update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url)))
     } else if conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
         info!("没有找到需要更新的ipv4记录");
         Box::new(move || {
-            tokio::spawn(async move {
-                update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url).await;
-            })
+            tokio::spawn(update_ip(
+                RecordType::AAAA,
+                &conf.ipv6_records,
+                &conf.ipv6_url,
+            ))
         })
     } else if !conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
         Box::new(move || {
@@ -63,7 +57,7 @@ pub fn run(loops_run: bool) -> Result<(), String> {
             })
         })
     } else {
-        return Err("".to_string());
+        return Err("未配置任何dns_records".to_string());
     };
 
     if conf.mutli_thread {
@@ -91,7 +85,12 @@ pub fn run(loops_run: bool) -> Result<(), String> {
             })?;
 
             loop {
-                let _ = run_once().await;
+                run_once().await.map_err(|e| {
+                    let e = format!("tokio运行时错误: {e}");
+                    error!("{e}");
+                    e
+                })?;
+                info!("本次更新完成");
 
                 tokio::select! {
                     _ = rx.wait_for(|signal| signal == &SignalType::Stop) => return Ok(()),
@@ -105,8 +104,13 @@ pub fn run(loops_run: bool) -> Result<(), String> {
                 }
             }
         } else {
-            let _ = run_once().await;
-            return Ok(());
+            run_once().await.map_err(|e| {
+                let e = format!("tokio运行时错误: {e}");
+                error!("{e}");
+                e
+            })?;
+            info!("更新完成");
+            Ok(())
         }
     })
 }
