@@ -1,14 +1,12 @@
 #[allow(unused_imports)]
 use log::{debug, error, info};
 use std::sync::LazyLock;
-use std::{future::Future, pin::Pin};
 use tokio::sync::watch::{self, Receiver, Sender};
 use tokio::time::{Duration, sleep};
 
 #[cfg(windows)]
 use windows_services::{Command, Service};
 
-use crate::initialize::load_conf::RecordType::A;
 use crate::initialize::load_conf::{self, RecordType};
 use crate::run::update_ip::update_ip;
 mod update_ip;
@@ -47,33 +45,6 @@ pub fn run(loops_run: bool) -> Result<(), String> {
         }
     };
 
-    // type AsyncTask<T> = Box<dyn Fn() -> JoinHandle<T> + Send + Sync>;
-
-    // let run_once: AsyncTask<()> = if !conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty() {
-    //     info!("没有找到需要更新的ipv6记录");
-    //     Box::new(move || tokio::spawn(update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url)))
-    // } else if conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
-    //     info!("没有找到需要更新的ipv4记录");
-    //     Box::new(move || {
-    //         tokio::spawn(update_ip(
-    //             RecordType::AAAA,
-    //             &conf.ipv6_records,
-    //             &conf.ipv6_url,
-    //         ))
-    //     })
-    // } else if !conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
-    //     Box::new(move || {
-    //         tokio::spawn(async move {
-    //             tokio::join!(
-    //                 update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url),
-    //                 update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url)
-    //             );
-    //         })
-    //     })
-    // } else {
-    //     return Err("未配置任何dns_records".to_string());
-    // };
-
     if conf.mutli_thread {
         tokio::runtime::Builder::new_multi_thread()
     } else {
@@ -99,11 +70,6 @@ pub fn run(loops_run: bool) -> Result<(), String> {
             })?;
 
             loop {
-                // run_once().await.map_err(|e| {
-                //     let e = format!("tokio运行时错误: {e}");
-                //     error!("{e}");
-                //     e
-                // })?;
                 run_once().await;
                 info!("本次更新完成");
 
@@ -119,11 +85,6 @@ pub fn run(loops_run: bool) -> Result<(), String> {
                 }
             }
         } else {
-            // run_once().await.map_err(|e| {
-            //     let e = format!("tokio运行时错误: {e}");
-            //     error!("{e}");
-            //     e
-            // })?;
             run_once().await;
             info!("更新完成");
             Ok(())
