@@ -33,10 +33,6 @@ pub fn run(loops_run: bool) -> Result<(), String> {
         .get()
         .ok_or("运行run函数时，CONFIG_JSON 未初始化")?;
 
-    if conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty() {
-        return Err("".to_string());
-    }
-
     type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
 
     type AsyncTask<T> = Box<dyn Fn() -> BoxFuture<T> + Send + Sync>;
@@ -46,6 +42,7 @@ pub fn run(loops_run: bool) -> Result<(), String> {
         Box::new(move || {
             Box::pin(async move {
                 update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url).await;
+                info!("本次更新完成");
             })
         })
     } else if conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
@@ -53,6 +50,7 @@ pub fn run(loops_run: bool) -> Result<(), String> {
         Box::new(move || {
             Box::pin(async move {
                 update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url).await;
+                info!("本次更新完成");
             })
         })
     } else if !conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
@@ -62,10 +60,11 @@ pub fn run(loops_run: bool) -> Result<(), String> {
                     update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url),
                     update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url)
                 );
+                info!("本次更新完成");
             })
         })
     } else {
-        return Err("".to_string());
+        return Err("未配置任何dns_records".to_string());
     };
 
     if conf.mutli_thread {
