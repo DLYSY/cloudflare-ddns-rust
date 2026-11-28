@@ -8,6 +8,7 @@ use tokio::time::{Duration, sleep};
 #[cfg(windows)]
 use windows_services::{Command, Service};
 
+use crate::initialize::load_conf::RecordType::A;
 use crate::initialize::load_conf::{self, RecordType};
 use crate::run::update_ip::update_ip;
 mod update_ip;
@@ -33,40 +34,45 @@ pub fn run(loops_run: bool) -> Result<(), String> {
         .get()
         .ok_or("运行run函数时，CONFIG_JSON 未初始化")?;
 
-    if conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty() {
-        return Err("".to_string());
-    }
-
-    type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
-
-    type AsyncTask<T> = Box<dyn Fn() -> BoxFuture<T> + Send + Sync>;
-
-    let run_once: AsyncTask<()> = if !conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty() {
-        info!("没有找到需要更新的ipv6记录");
-        Box::new(move || {
-            Box::pin(async move {
-                update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url).await;
-            })
-        })
-    } else if conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
-        info!("没有找到需要更新的ipv4记录");
-        Box::new(move || {
-            Box::pin(async move {
-                update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url).await;
-            })
-        })
-    } else if !conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
-        Box::new(move || {
-            Box::pin(async move {
-                tokio::join!(
-                    update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url),
-                    update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url)
-                );
-            })
-        })
-    } else {
-        return Err("".to_string());
+    let run_once = async move || {
+        if !conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty() {
+            update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url).await;
+        } else if conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
+            update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url).await;
+        } else if !conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
+            tokio::join!(
+                update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url),
+                update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url)
+            );
+        }
     };
+
+    // type AsyncTask<T> = Box<dyn Fn() -> JoinHandle<T> + Send + Sync>;
+
+    // let run_once: AsyncTask<()> = if !conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty() {
+    //     info!("没有找到需要更新的ipv6记录");
+    //     Box::new(move || tokio::spawn(update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url)))
+    // } else if conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
+    //     info!("没有找到需要更新的ipv4记录");
+    //     Box::new(move || {
+    //         tokio::spawn(update_ip(
+    //             RecordType::AAAA,
+    //             &conf.ipv6_records,
+    //             &conf.ipv6_url,
+    //         ))
+    //     })
+    // } else if !conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
+    //     Box::new(move || {
+    //         tokio::spawn(async move {
+    //             tokio::join!(
+    //                 update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url),
+    //                 update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url)
+    //             );
+    //         })
+    //     })
+    // } else {
+    //     return Err("未配置任何dns_records".to_string());
+    // };
 
     if conf.mutli_thread {
         tokio::runtime::Builder::new_multi_thread()
@@ -93,7 +99,13 @@ pub fn run(loops_run: bool) -> Result<(), String> {
             })?;
 
             loop {
+                // run_once().await.map_err(|e| {
+                //     let e = format!("tokio运行时错误: {e}");
+                //     error!("{e}");
+                //     e
+                // })?;
                 run_once().await;
+                info!("本次更新完成");
 
                 tokio::select! {
                     _ = rx.wait_for(|signal| signal == &SignalType::Stop) => return Ok(()),
@@ -107,8 +119,14 @@ pub fn run(loops_run: bool) -> Result<(), String> {
                 }
             }
         } else {
+            // run_once().await.map_err(|e| {
+            //     let e = format!("tokio运行时错误: {e}");
+            //     error!("{e}");
+            //     e
+            // })?;
             run_once().await;
-            return Ok(());
+            info!("更新完成");
+            Ok(())
         }
     })
 }
