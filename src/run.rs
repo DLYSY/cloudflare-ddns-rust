@@ -2,6 +2,7 @@
 use log::{debug, error, info};
 use std::sync::LazyLock;
 use tokio::sync::watch::{self, Receiver, Sender};
+use tokio::task::JoinHandle;
 use tokio::time::{Duration, sleep};
 
 #[cfg(windows)]
@@ -32,20 +33,35 @@ pub fn run(loops_run: bool) -> Result<(), String> {
         .get()
         .ok_or("运行run函数时，CONFIG_JSON 未初始化")?;
 
-    if conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty(){
-        return Err("".to_string());
-    }
+    type AsyncTask<T> = Box<dyn Fn() -> JoinHandle<T> + Send + Sync>;
 
-    let run_once = || async move {
-        let mut update_tasks = tokio::task::JoinSet::new();
-        if !conf.ipv4_records.is_empty() {
-            update_tasks.spawn(update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url));
-        }
-        if !conf.ipv6_records.is_empty() {
-            update_tasks.spawn(update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url));
-        }
-        let _a = update_tasks.join_all().await;
-        info!("本次更新完成");
+    let run_once: AsyncTask<()> = if !conf.ipv4_records.is_empty() && conf.ipv6_records.is_empty() {
+        info!("没有找到需要更新的ipv6记录");
+        Box::new(move || tokio::spawn(update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url)))
+    } else if conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
+        info!("没有找到需要更新的ipv4记录");
+        Box::new(move || {
+            tokio::spawn(update_ip(
+                RecordType::AAAA,
+                &conf.ipv6_records,
+                &conf.ipv6_url,
+            ))
+        })
+    } else if !conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
+        Box::new(move || {
+            let task_v4 =
+                tokio::spawn(update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url));
+            let task_v6 = tokio::spawn(update_ip(
+                RecordType::AAAA,
+                &conf.ipv6_records,
+                &conf.ipv6_url,
+            ));
+            tokio::spawn(async move {
+                let _ = tokio::join!(task_v4, task_v6);
+            })
+        })
+    } else {
+        return Err("未配置任何dns_records".to_string());
     };
 
     if conf.mutli_thread {
@@ -73,7 +89,12 @@ pub fn run(loops_run: bool) -> Result<(), String> {
             })?;
 
             loop {
-                run_once().await;
+                run_once().await.map_err(|e| {
+                    let e = format!("tokio运行时错误: {e}");
+                    error!("{e}");
+                    e
+                })?;
+                info!("本次更新完成");
 
                 tokio::select! {
                     _ = rx.wait_for(|signal| signal == &SignalType::Stop) => return Ok(()),
@@ -87,8 +108,13 @@ pub fn run(loops_run: bool) -> Result<(), String> {
                 }
             }
         } else {
-            run_once().await;
-            return Ok(());
+            run_once().await.map_err(|e| {
+                let e = format!("tokio运行时错误: {e}");
+                error!("{e}");
+                e
+            })?;
+            info!("更新完成");
+            Ok(())
         }
     })
 }
