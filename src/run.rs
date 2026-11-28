@@ -49,11 +49,15 @@ pub fn run(loops_run: bool) -> Result<(), String> {
         })
     } else if !conf.ipv4_records.is_empty() && !conf.ipv6_records.is_empty() {
         Box::new(move || {
+            let task_v4 =
+                tokio::spawn(update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url));
+            let task_v6 = tokio::spawn(update_ip(
+                RecordType::AAAA,
+                &conf.ipv6_records,
+                &conf.ipv6_url,
+            ));
             tokio::spawn(async move {
-                tokio::join!(
-                    update_ip(RecordType::A, &conf.ipv4_records, &conf.ipv4_url),
-                    update_ip(RecordType::AAAA, &conf.ipv6_records, &conf.ipv6_url)
-                );
+                let _ = tokio::join!(task_v4, task_v6);
             })
         })
     } else {
